@@ -25,7 +25,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import net.fabricmc.fabric.api.event.Event;
 import net.fabricmc.fabric.api.event.EventFactory;
-import net.minecraft.util.ActionResult;
+import net.minecraft.world.InteractionResult;
 import net.william278.huskclaims.HuskClaims;
 import net.william278.huskclaims.claim.Claim;
 import net.william278.huskclaims.claim.ClaimWorld;
@@ -40,7 +40,7 @@ public interface FabricPostCreateChildClaimEvent extends FabricEventCallback<Pos
                 for (FabricPostCreateChildClaimEvent listener : listeners) {
                     listener.invoke(event);
                 }
-                return ActionResult.PASS;
+                return InteractionResult.PASS;
             });
 
     @Getter

@@ -42,6 +42,6 @@ These instructions are for installing HuskClaims on multiple Spigot servers and 
 - You can delete the `HuskClaimsData.db` SQLite flat file that was generated, if you would like.
 
 ## Next steps
-* [[Config]]
-* [[Commands]]
-* [[Permissions]]
+* [Config](Config.md)
+* [Commands](Commands.md)
+* [Permissions](Permissions.md)

@@ -31,10 +31,27 @@ import org.jetbrains.annotations.Unmodifiable;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 
 public interface SafeTeleportProvider {
+
+    /**
+     * Blocks that hurt, trap or transport a player standing in or on them, as
+     * namespaced ids (e.g. {@code minecraft:lava}). Platforms resolve their
+     * block types against this shared list; Bukkit keeps its equivalent
+     * {@code Material} set in {@code BukkitSafeTeleportProvider}, and a test
+     * asserts the two stay one-to-one.
+     */
+    @Unmodifiable
+    Set<String> HARMFUL_BLOCK_KEYS = Set.of(
+            "minecraft:lava", "minecraft:fire", "minecraft:soul_fire", "minecraft:campfire",
+            "minecraft:soul_campfire", "minecraft:magma_block", "minecraft:cactus",
+            "minecraft:sweet_berry_bush", "minecraft:wither_rose", "minecraft:powder_snow",
+            "minecraft:pointed_dripstone", "minecraft:cobweb", "minecraft:nether_portal",
+            "minecraft:end_portal", "minecraft:end_gateway"
+    );
 
     default void teleportOutOfClaim(@NotNull OnlineUser user, boolean instant) {
         final Optional<Region> region = getPlugin().getClaimAt(user.getPosition()).map(Claim::getRegion);
@@ -83,6 +100,22 @@ public interface SafeTeleportProvider {
 
     @NotNull
     CompletableFuture<Optional<Position>> findSafePosition(@NotNull Position position);
+
+    /**
+     * Whether a player can safely stand at exactly this position: solid ground
+     * directly underneath, and open, harmless space for their feet and head.
+     * <p>
+     * Platforms should override this. The default falls back to
+     * {@link #findSafePosition}, which only inspects the top of the block column,
+     * so it cannot see caves, overhangs or positions in mid-air.
+     *
+     * @param position the exact position a player would be teleported to
+     * @return a future completing with whether the position is safe to stand at
+     */
+    @NotNull
+    default CompletableFuture<Boolean> isSafeStandingSpot(@NotNull Position position) {
+        return findSafePosition(position).thenApply(Optional::isPresent);
+    }
 
     @NotNull
     HuskClaims getPlugin();

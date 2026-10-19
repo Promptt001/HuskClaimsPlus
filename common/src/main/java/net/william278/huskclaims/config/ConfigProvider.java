@@ -27,15 +27,19 @@ import net.william278.cloplib.operation.OperationType;
 import net.william278.huskclaims.HuskClaims;
 import net.william278.huskclaims.trust.TrustLevel;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.logging.Level;
+import java.util.Map;
 
 /**
  * Interface for getting and setting data from plugin configuration files
@@ -72,11 +76,24 @@ public interface ConfigProvider {
      * @since 1.0
      */
     default void loadSettings() {
-        setSettings(YamlConfigurations.update(
-                getConfigDirectory().resolve("config.yml"),
-                Settings.class,
-                YAML_CONFIGURATION_PROPERTIES.header(Settings.CONFIG_HEADER).build()
-        ));
+        final Path path = getConfigDirectory().resolve("config.yml");
+        final YamlConfigurationProperties props =
+                YAML_CONFIGURATION_PROPERTIES.header(Settings.CONFIG_HEADER).build();
+        final Settings settings = YamlConfigurations.update(path, Settings.class, props);
+        final int previousLayout = settings.getGui().getLayoutVersion();
+        if (settings.getGui().migrateLayout()) {
+            // The new layout replaces any menu slots and icons the owner changed, so keep their file first
+            final Path backup = path.resolveSibling("config.yml.gui-layout-v" + previousLayout + ".bak");
+            try {
+                Files.copy(path, backup, StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException e) {
+                getPlugin().log(Level.WARNING, "Could not back up config.yml before updating the claim GUI layout", e);
+            }
+            YamlConfigurations.save(path, Settings.class, settings, props);
+            getPlugin().log(Level.INFO, "Reset the claim GUI layout settings in config.yml to layout v"
+                    + Settings.GuiSettings.CURRENT_LAYOUT_VERSION + " (previous file saved as " + backup.getFileName() + ")");
+        }
+        setSettings(settings);
     }
 
     /**
@@ -106,19 +123,86 @@ public interface ConfigProvider {
                 Locales.class, YAML_CONFIGURATION_PROPERTIES.header(Locales.CONFIG_HEADER).build()
         );
         // Read existing locales if present
-        final Path path = getConfigDirectory().resolve(String.format("messages-%s.yml", getSettings().getLanguage()));
+        final String lang = getSettings().getLanguage();
+        final Path path = getConfigDirectory().resolve(String.format("messages-%s.yml", lang));
+        final Locales locales;
         if (Files.exists(path)) {
-            setLocales(store.load(path));
+            locales = store.load(path);
+        } else {
+            // Otherwise, save and read the default locales
+            locales = loadDefaultLocales(store, path);
+        }
+        if (locales == null) {
             return;
         }
+        // Merge bundled keys for EVERY language (the old code early-returned
+        // for en-gb, so upgraded servers never saw new gui_* keys). When the bundled
+        // gui_locale_version is newer, all gui_* values are refreshed (with a .bak).
+        final Locales bundledLang = readBundledLocales(store, lang);
+        final Locales bundledDefault = readBundledLocales(store, Locales.DEFAULT_LOCALE);
+        // Read the version before the merge replaces it
+        final String previousGuiVersion = locales.locales.getOrDefault(LocaleMerge.GUI_VERSION_KEY, "0").trim();
+        final LocaleMerge.Result r = LocaleMerge.merge(
+                locales.locales,
+                bundledLang != null ? bundledLang.locales : Map.of(),
+                bundledDefault != null ? bundledDefault.locales : Map.of());
+        if (r.changed()) {
+            try {
+                if (r.guiRefreshed() > 0 && Files.exists(path)) {
+                    // One backup per GUI text version, so a later refresh can't overwrite the owner's original wording
+                    Files.copy(path, path.resolveSibling(path.getFileName() + ".gui-v" + previousGuiVersion + ".bak"),
+                            StandardCopyOption.REPLACE_EXISTING);
+                }
+                locales.locales.clear();
+                locales.locales.putAll(r.merged());
+                store.save(locales, path);
+                getPlugin().log(Level.INFO, String.format(
+                        "Updated %s: added %d missing message(s), refreshed %d GUI message(s)",
+                        path.getFileName(), r.added(), r.guiRefreshed()));
+            } catch (Throwable e) {
+                getPlugin().log(Level.WARNING, "Could not update " + path.getFileName(), e);
+                locales.locales.clear();
+                locales.locales.putAll(r.merged());     // still use the merged set in memory
+            }
+        }
+        setLocales(locales);
+    }
 
-        // Otherwise, save and read the default locales
+    /**
+     * Loads the default (bundled) locales for the configured language, saving them to disk
+     *
+     * @param store the YAML store to read with
+     * @param path  the path to save the read locales to
+     * @return the loaded locales, or {@code null} if the bundled resource could not be read
+     * @since HuskClaimsPlus 1.0.0
+     */
+    @Nullable
+    default Locales loadDefaultLocales(@NotNull YamlConfigurationStore<Locales> store, @NotNull Path path) {
         try (InputStream input = getResource(String.format("locales/%s.yml", getSettings().getLanguage()))) {
-            final Locales locales = store.read(input);
-            store.save(locales, path);
-            setLocales(locales);
+            final Locales loaded = store.read(input);
+            store.save(loaded, path);
+            return loaded;
         } catch (Throwable e) {
             getPlugin().log(Level.SEVERE, "An error occurred loading the locales (invalid lang code?)", e);
+            return null;
+        }
+    }
+
+    /**
+     * Read a bundled locale file without touching disk.
+     *
+     * @param store the YAML store to read with
+     * @param lang  the language code (e.g. {@code en-gb})
+     * @return the bundled locales, or {@code null} if the resource is missing
+     * @since HuskClaimsPlus 1.0.0
+     */
+    @Nullable
+    default Locales readBundledLocales(@NotNull YamlConfigurationStore<Locales> store, @NotNull String lang) {
+        try (InputStream input = getResource(String.format("locales/%s.yml", lang))) {
+            return input == null ? null : store.read(input);
+        } catch (Throwable e) {
+            getPlugin().log(Level.WARNING, "Could not read bundled locale '" + lang + "'", e);
+            return null;
         }
     }
 
@@ -235,6 +319,20 @@ public interface ConfigProvider {
      */
     @NotNull
     Path getConfigDirectory();
+
+    /**
+     * Directory that holds the local database file.
+     * <p>
+     * Defaults to the configuration directory. Platforms that run several worlds in one
+     * process override it so that each world keeps its own claims.
+     *
+     * @return the data directory
+     * @since HuskClaimsPlus 1.0.0
+     */
+    @NotNull
+    default Path getDataDirectory() {
+        return getConfigDirectory();
+    }
 
     @NotNull
     HuskClaims getPlugin();

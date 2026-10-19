@@ -20,9 +20,9 @@
 package net.william278.huskclaims.listener;
 
 import lombok.Getter;
-import net.minecraft.entity.ItemEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.server.level.ServerPlayer;
 import net.william278.huskclaims.FabricHuskClaims;
 import net.william278.huskclaims.moderation.DropsHandler;
 import net.william278.huskclaims.user.OnlineUser;
@@ -36,8 +36,9 @@ import java.util.UUID;
 
 public interface FabricDropsListener {
 
-    default void onPlayerDeath(ServerPlayerEntity player, Collection<ItemEntity> items) {
-        if (items.isEmpty() || !getPlugin().getSettings().getModeration().getDrops().isLockItems()) {
+    default void onPlayerDeath(ServerPlayer player, Collection<ItemEntity> items) {
+        if (items.isEmpty() || !getPlugin().isSessionActive()
+                || !getPlugin().getSettings().getModeration().getDrops().isLockItems()) {
             return;
         }
         OnlineUser user = getPlugin().getOnlineUser(player);
@@ -72,7 +73,7 @@ public interface FabricDropsListener {
         public boolean equals(Object obj) {
             return obj instanceof FabricDroppedItem item
                 && this.distance(item) <= DEATH_DROPS_EQUAL_RANGE
-                && item.getStack() != null && item.getStack().equals(getStack());
+                && this.getStack() != null && item.getStack().equals(getStack());
         }
 
     }
@@ -101,14 +102,19 @@ public interface FabricDropsListener {
         }
 
         private void updateEntity(boolean preventDestruction) {
+            //#if MC>=260300
+            //$$ // 26.3: setInvulnerable(boolean) -> setPermanentlyInvulnerable(boolean)
+            //$$ entity.setPermanentlyInvulnerable(owner != null && preventDestruction);
+            //#else
             entity.setInvulnerable(owner != null && preventDestruction);
-            entity.setOwner(owner);
+            //#endif
+            entity.setTarget(owner);
         }
 
         @Override
         @NotNull
         public DropsHandler.DroppedItem getStack() {
-            return new FabricDroppedItem(entity.getStack(), new Location(entity));
+            return new FabricDroppedItem(entity.getItem(), new Location(entity));
         }
 
     }

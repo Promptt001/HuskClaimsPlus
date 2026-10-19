@@ -19,14 +19,18 @@
 
 package net.william278.huskclaims.highlighter;
 
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.decoration.Brightness;
-import net.minecraft.entity.decoration.DisplayEntity;
-import net.minecraft.server.network.EntityTrackerEntry;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.util.math.AffineTransformation;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.util.Brightness;
+import net.minecraft.world.entity.Display;
+import net.minecraft.server.level.ServerEntity;
+import net.minecraft.server.level.ServerPlayer;
+import com.mojang.math.Transformation;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraft.resources.Identifier;
 import net.william278.cloplib.operation.OperationChunk;
 import net.william278.huskclaims.FabricHuskClaims;
 import net.william278.huskclaims.HuskClaims;
@@ -40,9 +44,11 @@ import org.jetbrains.annotations.NotNull;
 import org.joml.Vector3f;
 
 import java.util.Collection;
+import java.util.Objects;
+import java.util.function.Predicate;
 
 /**
- * Highlighter that uses {@link DisplayEntity.BlockDisplayEntity}s - used to highlight {@link Highlightable}s to a user in-game
+ * Highlighter that uses {@link Display.BlockDisplay}s - used to highlight {@link Highlightable}s to a user in-game
  */
 public class FabricBlockDisplayHighlighter extends BlockHighlighter<FabricBlockDisplayHighlighter.DisplayHighlightBlock> {
 
@@ -98,16 +104,16 @@ public class FabricBlockDisplayHighlighter extends BlockHighlighter<FabricBlockD
 
         // Block display scale constants
         private static final float SCALAR = 0.002f;
-        private static final AffineTransformation SCALE_TRANSFORMATION = new AffineTransformation(
+        private static final Transformation SCALE_TRANSFORMATION = new Transformation(
                 new Vector3f(-(SCALAR / 2), -(SCALAR / 2), -(SCALAR / 2)),
-                AffineTransformation.identity().getLeftRotation(),
-                new Vector3f(AffineTransformation.identity().getScale()).add(SCALAR, SCALAR, SCALAR),
-                AffineTransformation.identity().getRightRotation()
+                Transformation.IDENTITY.leftRotation(),
+                new Vector3f(Transformation.IDENTITY.scale()).add(SCALAR, SCALAR, SCALAR),
+                Transformation.IDENTITY.rightRotation()
         );
 
-        private final DisplayEntity.BlockDisplayEntity display;
+        private final Display.BlockDisplay display;
         private Location location;
-        private EntityTrackerEntry tracker;
+        private ServerEntity tracker;
 
         private DisplayHighlightBlock(@NotNull Position position, @NotNull Highlightable.Type type,
                                       @NotNull HuskClaims plugin) {
@@ -116,33 +122,34 @@ public class FabricBlockDisplayHighlighter extends BlockHighlighter<FabricBlockD
         }
 
         @NotNull
-        private DisplayEntity.BlockDisplayEntity createEntity(@NotNull HuskClaims plugin, @NotNull Highlightable.Type type) {
-            this.location = FabricHuskClaims.Adapter.adapt(position, ((FabricHuskClaims) plugin).getMinecraftServer());
+        private Display.BlockDisplay createEntity(@NotNull HuskClaims plugin, @NotNull Highlightable.Type type) {
+            this.location = FabricHuskClaims.Adapter.adapt(position, ((FabricHuskClaims) plugin).requireServer());
 
             // Check the chunk is loaded
             final OperationChunk chunk = position.getChunk();
-            if (!location.world().getChunkManager().isChunkLoaded(chunk.getX(), chunk.getZ())) {
+            if (!location.world().getChunkSource().hasChunk(chunk.getX(), chunk.getZ())) {
                 throw new IllegalStateException("World/chunk is not loaded");
             }
 
             // Create block display
             final BlockPos blockPos = location.blockPos();
-            final DisplayEntity.BlockDisplayEntity display = new DisplayEntity.BlockDisplayEntity(
-                    EntityType.BLOCK_DISPLAY, location.world());
-            display.refreshPositionAndAngles(blockPos.getX(), blockPos.getY(), blockPos.getZ(), 0.0f, 0.0f);
+            final Display.BlockDisplay display = new Display.BlockDisplay(
+                    Objects.requireNonNull(BuiltInRegistries.ENTITY_TYPE.getValue(Identifier.fromNamespaceAndPath("minecraft", "block_display"))),
+                    location.world());
+            display.absSnapTo(blockPos.getX(), blockPos.getY(), blockPos.getZ(), 0.0f, 0.0f);
 
             // Set parameters
-            display.setBlockState(((BlockMaterialBlock) this.block).getData().getDefaultState());
+            display.setBlockState(((BlockMaterialBlock) this.block).getData().defaultBlockState());
             display.setViewRange(BlockHighlighter.VIEWING_RANGE);
             display.setNoGravity(true);
-            display.setBrightness(FULL_BRIGHT);
+            display.setBrightnessOverride(FULL_BRIGHT);
 
             // Scale to prevent z-fighting
             display.setTransformation(SCALE_TRANSFORMATION);
 
             // Glow if needed
             if (plugin.getSettings().getHighlighter().isGlowEffect()) {
-                display.setGlowing(true);
+                display.setGlowingTag(true);
                 display.setGlowColorOverride(plugin.getSettings().getHighlighter().getGlowColor(type).getArgb());
             }
 
@@ -150,30 +157,76 @@ public class FabricBlockDisplayHighlighter extends BlockHighlighter<FabricBlockD
         }
 
         public void show(@NotNull OnlineUser user) {
-            final ServerPlayerEntity player = ((FabricUser) user).getFabricPlayer();
+            final ServerPlayer player = ((FabricUser) user).getFabricPlayer();
+            //#if MC>=260300
+            //$$ // 26.3: ServerEntity ctor takes UpdateInterval (net.minecraft.world.entity.UpdateInterval)
+            //$$ // instead of a raw int; wrap the entity type's interval.
+            //$$ this.tracker = new ServerEntity(
+            //$$         location.world(), display,
+            //$$         net.minecraft.world.entity.UpdateInterval.periodic(display.getType().updateInterval()),
+            //$$         display.getType().trackDeltas(),
+            //$$         new ServerEntity.Synchronizer() {
+            //$$             @Override
+            //$$             public void sendToTrackingPlayers(@NotNull Packet<? super ClientGamePacketListener> packet) {
+            //$$                 player.connection.send(packet);
+            //$$             }
+
+            //$$             @Override
+            //$$             public void sendToTrackingPlayersAndSelf(@NotNull Packet<? super ClientGamePacketListener> packet) {
+            //$$                 player.connection.send(packet);
+            //$$             }
+
+            //$$             @Override
+            //$$             public void sendToTrackingPlayersFiltered(@NotNull Packet<? super ClientGamePacketListener> packet,
+            //$$                                                     @NotNull Predicate<ServerPlayer> filter) {
+            //$$                 if (filter.test(player)) {
+            //$$                     player.connection.send(packet);
+            //$$                 }
+            //$$             }
+            //$$         }
+            //$$ );
+            //#else
             //#if MC==12105
-            this.tracker = new EntityTrackerEntry(
-                    location.world(), display, 
-                    display.getType().getTrackTickInterval(), 
-                    display.velocityDirty, 
-                    player.networkHandler::sendPacket,
-                    (p, b) -> player.networkHandler.sendPacket(p)
+            this.tracker = new ServerEntity(
+                    location.world(), display,
+                    display.getType().updateInterval(),
+                    display.getType().trackDeltas(),
+                    new ServerEntity.Synchronizer() {
+                        @Override
+                        public void sendToTrackingPlayers(@NotNull Packet<? super ClientGamePacketListener> packet) {
+                            player.connection.send(packet);
+                        }
+
+                        @Override
+                        public void sendToTrackingPlayersAndSelf(@NotNull Packet<? super ClientGamePacketListener> packet) {
+                            player.connection.send(packet);
+                        }
+
+                        @Override
+                        public void sendToTrackingPlayersFiltered(@NotNull Packet<? super ClientGamePacketListener> packet,
+                                                                @NotNull Predicate<ServerPlayer> filter) {
+                            if (filter.test(player)) {
+                                player.connection.send(packet);
+                            }
+                        }
+                    }
             );
             //#else
-            //$$ this.tracker = new EntityTrackerEntry(
+            //$$ this.tracker = new ServerEntity(
             //$$     location.world(), display,
-            //$$     display.getType().getTrackTickInterval(),
-            //$$     display.velocityDirty,
-            //$$     player.networkHandler::sendPacket
+            //$$     display.getType().updateInterval(),
+            //$$     display.hasImpulse,
+            //$$     player.connection::sendPacket
             //$$ );
             //#endif
-            tracker.startTracking(player);
+            //#endif
+            tracker.addPairing(player);
         }
 
         public void remove(@NotNull OnlineUser user) {
-            final ServerPlayerEntity player = ((FabricUser) user).getFabricPlayer();
+            final ServerPlayer player = ((FabricUser) user).getFabricPlayer();
             if (tracker != null) {
-                tracker.stopTracking(player);
+                tracker.removePairing(player);
             }
             display.remove(Entity.RemovalReason.DISCARDED);
         }

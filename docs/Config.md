@@ -5,7 +5,17 @@ This page contains the configuration structure for HuskClaims.
 - 📄 `config.yml`: General plugin configuration
 - 📄 `server.yml`: Server ID configuration
 - 📄 `trust_levels.yml`: Trust levels configuration (see [Trust levels](trust#trust-levels))
-- 📄 `messages-xx-xx.yml`: Plugin locales, formatted in MineDown (see [[Translations]])
+- 📄 `messages-xx-xx.yml`: Plugin locales, formatted in MineDown (see [Translations](Translations.md))
+
+## Sections added by HuskClaimsPlus
+
+- `config.yml` → `gui:` — the Claim Menu (on/off, layout, icons, cooldowns, which public
+  permissions owners may toggle, create/resize steps). See [Claim Menu](Claim-Menu.md).
+- `config.yml` → `claims.warps:` — claim warps. See [Claim Warps](Claim-Warps.md).
+- `fabric.yml` (Fabric only) → the LAN guest operator rule. See [Fabric](Fabric.md).
+
+Everything else is upstream HuskClaims configuration (see the
+[HuskClaims config docs](https://william278.net/docs/huskclaims/config)).
 
 ## Example files
 <details>
@@ -191,6 +201,16 @@ claims:
     # Whether to let users set their claim claims to private (prevent others from entering) using /claimprivate
     # Also requires the MANAGE_BANS privilege (by default, restricted to those with 'manage' trust)
     private_claims: false
+  # Settings for public claim warps (teleport anchors set by claim owners, visited via /visit)
+  warps:
+    # Whether to enable claim warps (/claimwarp set/unset/rename, /visit, /claimwarp list)
+    enabled: true
+    # The maximum length of a warp name
+    max_name_length: 32
+    # Whether warp names must be unique across the whole server (recommended; /visit lookup is by name)
+    enforce_unique_names: true
+    # Command cooldown, in seconds, between warp visits per player (0 to disable)
+    visit_cooldown_seconds: 3.0
 # Groups of operations that can be toggled on/off in claims
 operation_groups:
   - name: Claim Explosions

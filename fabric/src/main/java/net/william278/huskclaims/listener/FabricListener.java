@@ -22,27 +22,28 @@ package net.william278.huskclaims.listener;
 import com.google.common.collect.Lists;
 import lombok.Getter;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLevelEvents;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.fabricmc.fabric.api.networking.v1.PacketSender;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
-import net.minecraft.block.entity.SignBlockEntity;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.passive.TameableEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.registry.Registries;
+import net.minecraft.world.level.block.entity.SignBlockEntity;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.TamableAnimal;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.filter.FilteredMessage;
-import net.minecraft.server.network.ServerPlayNetworkHandler;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.server.network.FilteredText;
+import net.minecraft.server.network.ServerGamePacketListenerImpl;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.phys.Vec3;
 import net.william278.cloplib.listener.FabricOperationListener;
 import net.william278.cloplib.operation.OperationPosition;
 import net.william278.cloplib.operation.OperationUser;
 import net.william278.huskclaims.FabricHuskClaims;
+import net.william278.huskclaims.gui.GuiItemMarker;
 import net.william278.huskclaims.moderation.SignListener;
 import net.william278.huskclaims.moderation.SignWrite;
 import net.william278.huskclaims.position.World;
@@ -62,7 +63,7 @@ public class FabricListener extends FabricOperationListener implements FabricPet
     protected final FabricHuskClaims plugin;
 
     public FabricListener(@NotNull FabricHuskClaims plugin) {
-        super(plugin, plugin.getMod());
+        super(new SessionGatedHandler(plugin), plugin.getMod());
         this.plugin = plugin;
     }
 
@@ -72,7 +73,7 @@ public class FabricListener extends FabricOperationListener implements FabricPet
 
         ServerPlayConnectionEvents.JOIN.register(this::onPlayerJoin);
         ServerPlayConnectionEvents.DISCONNECT.register(this::onPlayerQuit);
-        ServerWorldEvents.LOAD.register(this::onWorldLoad);
+        ServerLevelEvents.LOAD.register(this::onWorldLoad);
         PlayerActionEvents.AFTER_HELD_ITEM_CHANGE.register(this::onUserChangeHeldItems);
         ServerLivingEntityEvents.ALLOW_DAMAGE.register(this::onPlayerDamageTamed);
         UseEntityCallback.EVENT.register(this::onPlayerTamedInteract);
@@ -80,31 +81,46 @@ public class FabricListener extends FabricOperationListener implements FabricPet
         PlayerActionEvents.AFTER_DEATH_DROP_ITEMS.register(this::onPlayerDeath);
     }
 
-    private void onPlayerJoin(ServerPlayNetworkHandler handler, PacketSender sender, MinecraftServer server) {
-        plugin.getOnlineUserMap().remove(handler.getPlayer().getUuid());
+    private void onPlayerJoin(ServerGamePacketListenerImpl handler, PacketSender sender, MinecraftServer server) {
+        if (!plugin.isSessionActive()) {
+            return;
+        }
+        plugin.getOnlineUserMap().remove(handler.getPlayer().getUUID());
         this.onUserJoin(plugin.getOnlineUser(handler.getPlayer()));
+        // Defence in depth for the GUI: remove any menu icons that survived a crash
+        // or client-side trickery (sgui slots are virtual, but see GuiItemMarker)
+        GuiItemMarker.purge(handler.getPlayer(), plugin);
     }
 
 
-    public void onPlayerQuit(ServerPlayNetworkHandler handler, MinecraftServer server) {
+    public void onPlayerQuit(ServerGamePacketListenerImpl handler, MinecraftServer server) {
+        if (!plugin.isSessionActive()) {
+            return; // the session already ended; its state was reset
+        }
         this.onUserQuit(plugin.getOnlineUser(handler.getPlayer()));
     }
 
-    public void onUserChangeHeldItems(@NotNull ServerPlayerEntity player,
+    public void onUserChangeHeldItems(@NotNull ServerPlayer player,
                                       @NotNull ItemStack mainHandItem, @NotNull ItemStack offHandItme) {
+        if (!plugin.isSessionActive()) {
+            return;
+        }
         this.onUserSwitchHeldItem(
                 plugin.getOnlineUser(player),
-                Registries.ITEM.getId(mainHandItem.isEmpty() ? Items.AIR : mainHandItem.getItem()).asString(),
-                Registries.ITEM.getId(offHandItme.isEmpty() ? Items.AIR : offHandItme.getItem()).asString()
+                BuiltInRegistries.ITEM.getKey(mainHandItem.isEmpty() ? Items.AIR : mainHandItem.getItem()).toString(),
+                BuiltInRegistries.ITEM.getKey(offHandItme.isEmpty() ? Items.AIR : offHandItme.getItem()).toString()
         );
     }
 
-    public List<FilteredMessage> onSignEdit(SignBlockEntity sign, ServerPlayerEntity player, boolean front, List<FilteredMessage> messages) {
+    public List<FilteredText> onSignEdit(SignBlockEntity sign, ServerPlayer player, boolean front, List<FilteredText> messages) {
+        if (!plugin.isSessionActive()) {
+            return messages; // no session: let vanilla proceed untouched
+        }
         SignWrite write = handleSignEdit(SignWrite.create(
             plugin.getOnlineUser(player),
-            FabricHuskClaims.Adapter.adapt(new Location((ServerWorld) sign.getWorld(), sign.getPos())),
+            FabricHuskClaims.Adapter.adapt(new Location((ServerLevel) sign.getLevel(), sign.getBlockPos())),
             front ? SignWrite.Type.SIGN_EDIT_FRONT : SignWrite.Type.SIGN_EDIT_BACK,
-            messages.stream().map(FilteredMessage::getString).toArray(String[]::new),
+            messages.stream().map(FilteredText::filtered).toArray(String[]::new),
             plugin.getServerName()
         ));
 
@@ -112,9 +128,9 @@ public class FabricListener extends FabricOperationListener implements FabricPet
             return messages;
         }
 
-        List<FilteredMessage> filteredMessages = Lists.newArrayList();
+        List<FilteredText> filteredMessages = Lists.newArrayList();
         for (int l = 0; l < messages.size(); l++) {
-            filteredMessages.add(FilteredMessage.permitted(write.getFilteredText().get(l)));
+            filteredMessages.add(FilteredText.passThrough(write.getFilteredText().get(l)));
         }
         return filteredMessages;
     }
@@ -130,7 +146,10 @@ public class FabricListener extends FabricOperationListener implements FabricPet
 //        }
 //    }
 
-    public void onWorldLoad(@NotNull MinecraftServer server, @NotNull ServerWorld serverWorld) {
+    public void onWorldLoad(@NotNull MinecraftServer server, @NotNull ServerLevel serverWorld) {
+        if (!plugin.isSessionActive()) {
+            return;
+        }
         plugin.runAsync(() -> {
             final World world = FabricHuskClaims.Adapter.adapt(serverWorld);
             plugin.loadClaimWorld(world);
@@ -142,11 +161,12 @@ public class FabricListener extends FabricOperationListener implements FabricPet
 
     @Override
     public boolean onUserTamedEntityAction(@Nullable Entity player, @NotNull Entity entity) {
-        if (player == null || !plugin.getSettings().getPets().isEnabled() || !(entity instanceof TameableEntity tamed)) {
+        if (player == null || !plugin.isSessionActive()
+                || !plugin.getSettings().getPets().isEnabled() || !(entity instanceof TamableAnimal tamed)) {
             return true;
         }
 
-        final Optional<ServerPlayerEntity> source = getPlayerSource(player);
+        final Optional<ServerPlayer> source = getPlayerSource(player);
         final Optional<User> owner = plugin.getPetOwner(tamed);
         if (source.isEmpty() || owner.isEmpty()) {
             return true;
@@ -157,15 +177,18 @@ public class FabricListener extends FabricOperationListener implements FabricPet
 
     @Override
     @NotNull
-    public OperationPosition getPosition(@NotNull Vec3d vec3d, @NotNull net.minecraft.world.World world,
+    public OperationPosition getPosition(@NotNull Vec3 vec3d, @NotNull net.minecraft.world.level.Level world,
                                          float yaw, float pitch) {
         return FabricHuskClaims.Adapter.adapt(world, vec3d, yaw, pitch);
     }
 
     @Override
     @NotNull
-    public OperationUser getUser(@NotNull PlayerEntity player) {
-        return plugin.getOnlineUser((ServerPlayerEntity) player);
+    public OperationUser getUser(@NotNull Player player) {
+        if (!(player instanceof ServerPlayer serverPlayer)) {
+            throw new IllegalArgumentException("Claims are only checked for server-side players");
+        }
+        return plugin.getOnlineUser(serverPlayer);
     }
 
     @Override

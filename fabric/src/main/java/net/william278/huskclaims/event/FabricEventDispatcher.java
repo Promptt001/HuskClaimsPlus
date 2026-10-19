@@ -19,7 +19,7 @@
 
 package net.william278.huskclaims.event;
 
-import net.minecraft.util.ActionResult;
+import net.minecraft.world.InteractionResult;
 import net.william278.huskclaims.claim.Claim;
 import net.william278.huskclaims.claim.ClaimWorld;
 import net.william278.huskclaims.claim.Region;
@@ -52,7 +52,7 @@ public interface FabricEventDispatcher extends EventDispatcher {
                     (net.fabricmc.fabric.api.event.Event<?>) field.invoke(event);
 
             final FabricEventCallback<T> invoker = (FabricEventCallback<T>) fabricEvent.invoker();
-            return invoker.invoke(event) == ActionResult.FAIL;
+            return invoker.invoke(event) == InteractionResult.FAIL;
         } catch (InvocationTargetException | NoSuchMethodException | IllegalAccessException e) {
             getPlugin().log(Level.WARNING, "Failed to fire event (" + event.getClass().getName() + ")", e);
             return false;

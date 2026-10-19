@@ -43,7 +43,7 @@ void showUserGroups(org.bukkit.Player player) {
 
 ## 3. Trusting Trustables in a claim
 * You can use the `HuskClaimsAPI#setTrustLevel(Claim claim, ClaimWorld claimWorld, Trustable trustable, TrustLevel trustLevel)` method to set a user's trust level in a claim.
-  * Check the [[Claims API]] documentation for _getting_ a `Claim` and `ClaimWorld` from a `Position`
+  * Check the [Claims API](Claims-API.md) documentation for _getting_ a `Claim` and `ClaimWorld` from a `Position`
   * Also check the Claims API page for getting a user's trust level in any given claim.
 * Valid `Trustables` include a `User` (or extending classes, such as an `OnlineUser`), a `TrustTag`, or a `UserGroup`.
 

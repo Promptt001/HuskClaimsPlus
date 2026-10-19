@@ -479,6 +479,49 @@ public class ClaimWorld {
         return userClaims.values().stream().mapToInt(Set::size).sum();
     }
 
+    /**
+     * Get the claim in this world whose warp name matches the given name (case-insensitive), if any.
+     *
+     * @param warpName the warp name to look up
+     * @return the claim with a matching warp, if one exists
+     * @since HuskClaimsPlus 1.0.0
+     */
+    @NotNull
+    public Optional<Claim> getClaimByWarpName(@NotNull String warpName) {
+        return getClaims().stream()
+                .filter(claim -> claim.getWarp() != null
+                        && claim.getWarp().getName().equalsIgnoreCase(warpName))
+                .findFirst();
+    }
+
+    /**
+     * Get all claims in this world that have a warp set.
+     *
+     * @return the list of claims with warps
+     * @since HuskClaimsPlus 1.0.0
+     */
+    @NotNull
+    @Unmodifiable
+    public List<Claim> getWarpClaims() {
+        return getClaims().stream()
+                .filter(claim -> claim.getWarp() != null)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get all claims in this world that have a publicly-accessible warp.
+     *
+     * @return the list of claims with public warps
+     * @since HuskClaimsPlus 1.0.0
+     */
+    @NotNull
+    @Unmodifiable
+    public List<Claim> getPublicWarpClaims() {
+        return getClaims().stream()
+                .filter(claim -> claim.getWarp() != null && claim.getWarp().isPubliclyAccessible())
+                .collect(Collectors.toList());
+    }
+
     // Check if a user is banned from a claim
     @ApiStatus.Internal
     public boolean isBannedFromClaim(@NotNull OnlineUser user, @NotNull Claim claim, @NotNull HuskClaims plugin) {

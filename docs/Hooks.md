@@ -1,4 +1,4 @@
-HuskClaims offers several built-in hooks providing support for other plugins. These hooks can be enabled or disabled in the `hooks` section of the plugin [[config]].
+HuskClaims offers several built-in hooks providing support for other plugins. These hooks can be enabled or disabled in the `hooks` section of the plugin [config](config.md).
 
 | Name                               | Description                                   | Link                                              |
 |------------------------------------|-----------------------------------------------|---------------------------------------------------|
@@ -20,9 +20,9 @@ If Vault (and a compatible economy plugin) is installed, the `/buyclaimblocks` c
 If LuckPerms is installed, HuskClaims will register [Trust Tags](trust#trust-tags) for every defined LuckPerms group in the format `#role/(group_name)` &mdash; e.g. `#role/admin`. This allows you to easily grant trust to all members of a LuckPerms group, particularly useful in admin claims.
 
 ## HuskHomes
-If HuskHomes is installed, the `/huskclaims teleport` command will be enabled allowing admins to quickly teleport to claims from the [claim list](claims#listing-claims), or to the location of a placed sign if you are using [[Sign Moderation]].
+If HuskHomes is installed, the `/huskclaims teleport` command will be enabled allowing admins to quickly teleport to claims from the [claim list](claims#listing-claims), or to the location of a placed sign if you are using [Sign Moderation](Sign-Moderation.md).
 
-Additionally, the HuskHomes hook will register the `huskhomes:set_home` operation type. Add this to [[trust]] levels in your `trust_levels.yml` file to require a minimum trust level to set or relocate a home within a claim. Don't forget to add it to `allowed_owner_operations` as well!
+Additionally, the HuskHomes hook will register the `huskhomes:set_home` operation type. Add this to [trust](trust.md) levels in your `trust_levels.yml` file to require a minimum trust level to set or relocate a home within a claim. Don't forget to add it to `allowed_owner_operations` as well!
 
 <details>
 <summary>HuskHomes Hook &mdash; Adding to trust_levels.yml</summary>
@@ -61,10 +61,10 @@ If PlaceholderAPI is installed, HuskClaims will register a PlaceholderAPI expans
 
 | Placeholder                              | Description                                                                | Example                           |
 |------------------------------------------|----------------------------------------------------------------------------|-----------------------------------|
-| `%huskclaims_claim_blocks%`              | The number of [[claim blocks]] the player has                              | `100`, `1234`, etc.               |
+| `%huskclaims_claim_blocks%`              | The number of [claim blocks](claim-blocks.md) the player has                              | `100`, `1234`, etc.               |
 | `%huskclaims_current_is_claimed%`        | Whether the player is currently standing in a claim                        | `true` or `false`                 |
 | `%huskclaims_current_claim_owner%`       | The owner of the claim the player is standing in                           | `Steve`, `an administrator`, etc. |
-| `%huskclaims_current_claim_is_trusted%`  | Whether the player has a [[trust level]] in the claim they are standing in | `true` or `false`                 |
+| `%huskclaims_current_claim_is_trusted%`  | Whether the player has a [trust level](trust-level.md) in the claim they are standing in | `true` or `false`                 |
 | `%huskclaims_current_claim_trust_level%` | The trust level of the player in the claim they are standing in            | `Access`, `Container`, etc.       |
 | `%huskclaims_can_build%`                 | Whether the player can build in the claim they are standing in             | `true` or `false`                 |
 | `%huskclaims_can_open_containers%`       | Whether the player can open containers in the claim they are standing in   | `true` or `false`                 |

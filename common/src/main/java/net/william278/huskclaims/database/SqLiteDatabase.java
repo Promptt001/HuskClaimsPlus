@@ -61,7 +61,7 @@ public class SqLiteDatabase extends Database {
 
     public SqLiteDatabase(@NotNull HuskClaims plugin) {
         super(plugin);
-        this.databaseFile = plugin.getConfigDirectory().resolve(DATABASE_FILE_NAME);
+        this.databaseFile = plugin.getDataDirectory().resolve(DATABASE_FILE_NAME);
     }
 
     private Connection getConnection() throws SQLException {
@@ -509,13 +509,21 @@ public class SqLiteDatabase extends Database {
         final ClaimWorld claimWorld = ClaimWorld.create(plugin);
         try (PreparedStatement statement = getConnection().prepareStatement(format("""
                 INSERT INTO `%claim_data%` (`world_uuid`, `world_name`, `world_environment`, `server_name`, `data`)
-                VALUES (?, ?, ?, ?, jsonb(?))"""))) {
+                VALUES (?, ?, ?, ?, jsonb(?))
+                RETURNING `id`"""))) {
             statement.setString(1, world.getUuid().toString());
             statement.setString(2, world.getName());
             statement.setString(3, world.getEnvironment());
             statement.setString(4, plugin.getServerName());
             statement.setBytes(5, plugin.getGson().toJson(claimWorld).getBytes(StandardCharsets.UTF_8));
-            claimWorld.updateId(statement.executeUpdate());
+            // Was: claimWorld.updateId(statement.executeUpdate()) — that stores the ROW COUNT (always 1),
+            // so every claim world created in one session shared id 1 (equals() collision + row-1 overwrites).
+            try (ResultSet keys = statement.executeQuery()) {
+                if (!keys.next()) {
+                    throw new SQLException("INSERT ... RETURNING id returned no row");
+                }
+                claimWorld.updateId(keys.getInt(1));
+            }
         } catch (SQLException | JsonSyntaxException e) {
             plugin.log(Level.SEVERE, "Failed to create claim world in table", e);
         }

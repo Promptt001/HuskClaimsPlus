@@ -66,9 +66,9 @@ public interface DumpProvider {
                         .version(getPlugin().getPluginVersion().toString())
                         .md5("unknown")
                         .author("William278")
-                        .sourceCode("https://github.com/WiIIiam278/HuskClaims")
-                        .website("https://william278.net/project/huskclaims")
-                        .support("https://discord.gg/tVYhJfyDWG")
+                        .sourceCode("https://github.com/Promptt001/HuskClaimsPlus")
+                        .website("https://github.com/Promptt001/HuskClaimsPlus")
+                        .support("https://github.com/Promptt001/HuskClaimsPlus/issues")
                         .build())
                 .fileInclusionRules(List.of(
                         FileInclusionRule.configFile("config.yml", "Config File"),

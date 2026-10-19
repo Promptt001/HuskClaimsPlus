@@ -34,8 +34,8 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
+import java.util.Map;
 import java.util.StringJoiner;
 
 public abstract class InClaimCommand extends OnlineUserCommand {
@@ -47,6 +47,21 @@ public abstract class InClaimCommand extends OnlineUserCommand {
         super(aliases, usage, plugin);
         this.privilege = privilege;
         addAdditionalPermissions(Map.of("other", true));
+    }
+
+    /**
+     * The claim privilege this command requires, if any.
+     *
+     * <p>Used by claim-scoped GUI invocation to reproduce the position-based
+     * {@code execute(user, args)} wrapper's privilege gate against the
+     * resolved claim.</p>
+     *
+     * @return the required privilege, or empty if the command needs none
+     * @since HuskClaimsPlus 1.0.0
+     */
+    @NotNull
+    public Optional<TrustLevel.Privilege> getPrivilege() {
+        return Optional.ofNullable(privilege);
     }
 
     protected InClaimCommand(@NotNull List<String> aliases, @NotNull String usage,

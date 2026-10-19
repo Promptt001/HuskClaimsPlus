@@ -1,7 +1,7 @@
 name: 'HuskClaims'
 description: '${description}'
-author: 'William278'
-website: 'https://william278.net/'
+authors: ['William278', 'Promptt001']
+website: 'https://github.com/Promptt001/HuskClaimsPlus'
 main: 'net.william278.huskclaims.PaperHuskClaims'
 loader: 'net.william278.huskclaims.PaperHuskClaimsLoader'
 version: '${version}'

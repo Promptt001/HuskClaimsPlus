@@ -40,7 +40,7 @@ public interface BrokerProvider {
     void setupPluginMessagingChannels();
 
     default void loadBroker() {
-        if (!getPlugin().getSettings().getCrossServer().isEnabled()) {
+        if (!isCrossServerSupported() || !getPlugin().getSettings().getCrossServer().isEnabled()) {
             return;
         }
 
@@ -49,6 +49,18 @@ public interface BrokerProvider {
             case PLUGIN_MESSAGE -> setBroker(new PluginMessageBroker(getPlugin()));
         }
         getBroker().ifPresent(Broker::initialize);
+    }
+
+    /**
+     * Whether this platform can host a cross-server broker. Platforms that run worlds
+     * without a proxy (e.g. singleplayer/Open-to-LAN integrated servers) return false,
+     * so no broker is started for them.
+     *
+     * @return true if cross-server messaging is supported
+     * @since HuskClaimsPlus 1.0.0
+     */
+    default boolean isCrossServerSupported() {
+        return true;
     }
 
     @NotNull

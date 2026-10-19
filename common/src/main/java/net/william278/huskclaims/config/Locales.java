@@ -52,13 +52,16 @@ import java.util.Optional;
 public class Locales implements PaginatedListProvider {
 
     static final String CONFIG_HEADER = """
-            ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-            ┃     HuskClaims - Locales     ┃
-            ┃    Developed by William278   ┃
-            ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-            ┣╸ See plugin about menu for international locale credits
+            ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            ┃ HuskClaimsPlus · Locales
+            ┃ Based on HuskClaims by William278 (Apache-2.0)
+            ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            ┣╸ HuskClaimsPlus: https://github.com/Promptt001/HuskClaimsPlus
+            ┣╸ See the plugin's about menu for international locale credits
             ┣╸ Formatted in MineDown: https://github.com/Phoenix616/MineDown
-            ┗╸ Translate HuskClaims: https://william278.net/docs/huskclaims/translations""";
+            ┣╸ Config Help: https://william278.net/docs/huskclaims/translations
+            ┗╸ Documentation: https://william278.net/docs/huskclaims/
+            """;
 
     protected static final String DEFAULT_LOCALE = "en-gb";
 

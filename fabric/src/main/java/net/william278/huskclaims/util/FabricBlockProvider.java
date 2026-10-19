@@ -20,19 +20,20 @@
 package net.william278.huskclaims.util;
 
 import com.google.common.collect.Maps;
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.StainedGlassBlock;
-import net.minecraft.block.StainedGlassPaneBlock;
-import net.minecraft.item.Items;
-import net.minecraft.registry.Registries;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.Pair;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.StainedGlassBlock;
+import net.minecraft.world.level.block.StainedGlassPaneBlock;
+import net.minecraft.world.item.Items;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.resources.Identifier;
+import com.mojang.datafixers.util.Pair;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 //#if MC==12101
-//$$ import net.minecraft.world.EmptyBlockView;
+//$$ import net.minecraft.world.level.EmptyBlockGetter;
 //#endif
 import net.william278.huskclaims.FabricHuskClaims;
 import net.william278.huskclaims.FabricHuskClaims.Adapter;
@@ -53,7 +54,7 @@ public interface FabricBlockProvider extends BlockProvider {
     @NotNull
     @Override
     default MaterialBlock getBlockFor(@NotNull String materialKey) {
-        return BlockMaterialBlock.create(Registries.BLOCK.get(Identifier.of(materialKey)));
+        return BlockMaterialBlock.create(BuiltInRegistries.BLOCK.getValue(Identifier.parse(materialKey)));
     }
 
     @NotNull
@@ -63,18 +64,20 @@ public interface FabricBlockProvider extends BlockProvider {
             @NotNull World surfaceWorld, @NotNull Position viewerPos
     ) {
         final Map<BlockHighlighter.HighlightBlock, Highlightable.Type> blocks = Maps.newHashMap();
-        final BlockPos viewerBlock = new BlockPos(viewerPos.getBlockX(), (int) viewerPos.getY(), viewerPos.getBlockZ());
-        final ServerWorld world = Adapter.adapt(surfaceWorld, getPlugin().getMinecraftServer());
+        final BlockPos viewerBlock = BlockPos.containing(viewerPos.getX(), viewerPos.getY(), viewerPos.getZ());
+        final ServerLevel world = Adapter.adapt(surfaceWorld, getPlugin().requireServer());
         positions.forEach((pos, highlightType) -> {
-            final BlockPos.Mutable loc = new BlockPos.Mutable(pos.getBlockX() - 1, viewerBlock.getY(), pos.getBlockZ() - 1);
-            final boolean loaded = world.isChunkLoaded(loc.getX() >> 4, loc.getZ() >> 4);
-            if (loaded && loc.toCenterPos().distanceTo(viewerBlock.toCenterPos()) <= VIEWING_RANGE) {
+            // Highlight points are block coordinates of the claim's own edge, so the
+            // outline is drawn on exactly the blocks the claim protects.
+            final BlockPos.MutableBlockPos loc = new BlockPos.MutableBlockPos(pos.getBlockX(), viewerBlock.getY(), pos.getBlockZ());
+            final boolean loaded = world.hasChunk(loc.getX() >> 4, loc.getZ() >> 4);
+            if (loaded && Vec3.atCenterOf(loc).distanceTo(Vec3.atCenterOf(viewerBlock)) <= VIEWING_RANGE) {
                 final Pair<BlockPos, Block> block = getSurfaceBlockAt(
-                        loc, world, world.getBottomY(), world.getHeight()
+                        loc, world, world.getMinY(), world.getHeight()
                 );
                 blocks.put(new BlockHighlighter.HighlightBlock(
-                        Adapter.adapt(new Location(world, block.getLeft())),
-                        new BlockMaterialBlock(block.getRight())
+                        Adapter.adapt(new Location(world, block.getFirst())),
+                        new BlockMaterialBlock(block.getSecond())
                 ), highlightType);
             }
         });
@@ -83,7 +86,7 @@ public interface FabricBlockProvider extends BlockProvider {
 
     // Scans up or down relative to where the player is standing to find a good surface block
     @NotNull
-    private Pair<BlockPos, Block> getSurfaceBlockAt(@NotNull BlockPos.Mutable block, @NotNull ServerWorld world,
+    private Pair<BlockPos, Block> getSurfaceBlockAt(@NotNull BlockPos.MutableBlockPos block, @NotNull ServerLevel world,
                                                     int minHeight, int maxHeight) {
         final Direction direction = !isOccluding(world.getBlockState(block)) ? Direction.DOWN : Direction.UP;
         while (isObscured(block, world, minHeight, maxHeight)) {
@@ -93,9 +96,9 @@ public interface FabricBlockProvider extends BlockProvider {
     }
 
     // Returns if a block would be obscured by the block above it (and that it's within the world boundaries)
-    private boolean isObscured(@NotNull BlockPos.Mutable block, @NotNull ServerWorld world,
+    private boolean isObscured(@NotNull BlockPos.MutableBlockPos block, @NotNull ServerLevel world,
                                int minHeight, int maxHeight) {
-        return (isOccluding(world.getBlockState(block.offset(Direction.UP, 1))) ||
+        return (isOccluding(world.getBlockState(block.relative(Direction.UP, 1))) ||
                !isOccluding(world.getBlockState(block))) &&
                block.getY() >= minHeight && (block.getY() < maxHeight - 1);
     }
@@ -103,9 +106,9 @@ public interface FabricBlockProvider extends BlockProvider {
     // Returns if a block occludes vision/light
     private boolean isOccluding(@NotNull BlockState block) {
         //#if MC>=12104
-        return !block.isTransparent() || isAllowedMaterial(block.getBlock());
+        return !block.propagatesSkylightDown() || isAllowedMaterial(block.getBlock());
         //#else
-        //$$ return !block.isTransparent(EmptyBlockView.INSTANCE, BlockPos.ORIGIN) || isAllowedMaterial(block.getBlock());
+        //$$ return !block.isTransparent(EmptyBlockGetter.INSTANCE, BlockPos.ORIGIN) || isAllowedMaterial(block.getBlock());
         //#endif
     }
 

@@ -1,6 +1,6 @@
-HuskClaims provides API for getting, creating resizing, & deleting [[claims]], child claims, and admin claims, managing [[claim blocks]], and attaching persistent metadata to claims.
+HuskClaims provides API for getting, creating resizing, & deleting [claims](claims.md), child claims, and admin claims, managing [claim blocks](claim-blocks.md), and attaching persistent metadata to claims.
 
-This page assumes you have read the general [[API]] introduction and that you have both imported HuskClaims into your project and added it as a dependency.
+This page assumes you have read the general [API](API.md) introduction and that you have both imported HuskClaims into your project and added it as a dependency.
 
 ## Table of Contents
 * [1. Getting if a location is claimed](#1-getting-if-a-location-is-claimed)
@@ -19,7 +19,7 @@ This page assumes you have read the general [[API]] introduction and that you ha
   * With a `Claim` object, you can also check if it's an admin claim (`#isAdminClaim()`) or a child claim (`#isChildClaim(ClaimWorld)`) &mdash; more on claim worlds in a bit!
 * You can get the displayed name of who owns the claim using `#getClaimOwnerNameAt(Position position)`, returning an `Optional<String>`
   * If the claim is an admin claim, the owner name will be `an administrator` (or whatever you have set in the locales)
-* Check the [[Trust API]] for trusting users in a claim.
+* Check the [Trust API](Trust-API.md) for trusting users in a claim.
 
 <details>
 <summary>Example &mdash; Getting if a location is claimed</summary>
@@ -60,7 +60,7 @@ void showClaimWorld(org.bukkit.World world) {
   * Note that by default checks are not silent - the user will be informed if your check fails; there's no need to display a message yourself.
   * Use the `#isOperationAllowed` method that accepts and build an `Operation` via `Operation.of()` for more complex operation checks
 * Additionally, we can check if a user has a `TrustLevel.Privileges` at a location using `#isPrivilegeAllowed(TrustLevel.Privilege privilege, User user, Position position)`
-* Finally, we can also look up a user''s [[trust]] level in a claim using `#getTrustLevelAt(Position position, Trustable user)` (`User` and `OnlineUser` implement `Trustable`!)
+* Finally, we can also look up a user''s [trust](trust.md) level in a claim using `#getTrustLevelAt(Position position, Trustable user)` (`User` and `OnlineUser` implement `Trustable`!)
   * This will return an `Optional<TrustLevel>`, which you can check if it is present using `Optional#isPresent()`, or through the `#ifPresent((trustLevel) -> {})` lambda syntax.
 
 <details>

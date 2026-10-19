@@ -1,0 +1,63 @@
+name: Build and test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: read
+  checks: write          # mikepenz/action-junit-report publishes a check run
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CLOPLIB_REPO: Promptt001/ClopLib
+  CLOPLIB_TAG: 2.0.13.1          # must match fabric_cloplib_version in fabric/26.x/gradle.properties
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0          # grgit needs history and tags, or versions get a -<sha> suffix
+      - name: Check the ClopLib pin
+        run: |
+          grep -q "^fabric_cloplib_version=${CLOPLIB_TAG}+26.2$" fabric/26.2/gradle.properties
+          grep -q "^fabric_cloplib_version=${CLOPLIB_TAG}+26.3$" fabric/26.3/gradle.properties
+      - uses: actions/checkout@v5
+        with:
+          repository: ${{ env.CLOPLIB_REPO }}
+          ref: ${{ env.CLOPLIB_TAG }}
+          path: cloplib
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: |
+            21
+            25
+      - name: Publish ClopLib to mavenLocal
+        working-directory: cloplib
+        env:
+          JAVA_HOME: ${{ env.JAVA_HOME_25_X64 }}
+        run: ./gradlew --no-daemon :fabric:26.2:publishToMavenLocal :fabric:26.3:publishToMavenLocal
+      - name: Build and test common and bukkit
+        env:
+          JAVA_HOME: ${{ env.JAVA_HOME_21_X64 }}
+        run: ./gradlew --no-daemon :common:build :bukkit:build
+      - name: Build Paper and Fabric
+        env:
+          JAVA_HOME: ${{ env.JAVA_HOME_25_X64 }}
+        run: ./gradlew --no-daemon :paper:build :fabric:26.2:build :fabric:26.3:build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jars
+          path: target/*.jar
+      - uses: mikepenz/action-junit-report@v6
+        if: success() || failure()
+        with:
+          report_paths: '**/build/test-results/test/TEST-*.xml'

@@ -19,7 +19,7 @@
 
 package net.william278.huskclaims.hook;
 
-import net.minecraft.util.ActionResult;
+import net.minecraft.world.InteractionResult;
 import net.william278.huskclaims.HuskClaims;
 import net.william278.huskclaims.position.Position;
 import net.william278.huskclaims.position.World;
@@ -49,18 +49,18 @@ public class FabricHuskHomesHook extends HuskHomesHook {
 
         HomeCreateCallback.EVENT.register((event) -> {
             if (!(event.getCreator() instanceof FabricUser player)) {
-                return ActionResult.PASS;
+                return InteractionResult.PASS;
             }
             return cancelSetHomeAt(getPlugin().getOnlineUser(player.getUuid()),
-                    Adapter.adapt(event.getPosition())) ? ActionResult.FAIL : ActionResult.PASS;
+                    Adapter.adapt(event.getPosition())) ? InteractionResult.FAIL : InteractionResult.PASS;
         });
         HomeEditCallback.EVENT.register((event) -> {
             if (!(event.getEditor() instanceof FabricUser player)
                     || !hasMoved(event.getOriginalHome(), event.getHome())) {
-                return ActionResult.PASS;
+                return InteractionResult.PASS;
             }
             return cancelSetHomeAt(getPlugin().getOnlineUser(player.getUuid()),
-                    Adapter.adapt(event.getHome())) ? ActionResult.FAIL : ActionResult.PASS;
+                    Adapter.adapt(event.getHome())) ? InteractionResult.FAIL : InteractionResult.PASS;
         });
     }
 

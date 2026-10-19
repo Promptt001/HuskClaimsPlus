@@ -1,0 +1,13 @@
+HuskClaimsPlus
+Copyright 2026 Promptt001 and HuskClaimsPlus contributors
+
+This product is a modified version of HuskClaims
+(https://github.com/WiIIiam278/HuskClaims), Copyright William278 and
+contributors, licensed under the Apache License, Version 2.0.
+HuskClaimsPlus is not made, endorsed or supported by William278.
+
+Files changed for HuskClaimsPlus are summarised in CHANGELOG.md (each
+release section lists what differs from upstream). The full history is in
+this repository.
+
+This product bundles third-party software; see THIRD_PARTY_LICENSES.md.

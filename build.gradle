@@ -1,9 +1,10 @@
 import org.apache.tools.ant.filters.ReplaceTokens
+import org.gradle.jvm.toolchain.JavaLanguageVersion
 
 plugins {
     id 'com.gradleup.shadow' version '9.4.1'
     id 'dev.yumi.gradle.licenser' version '3.0.1' apply false
-    id 'dev.architectury.loom' version '1.14.+' apply false
+    id 'gg.essential.loom' version '1.15.50' apply false
     id 'gg.essential.multi-version.root' apply false
     id 'org.ajoberstar.grgit' version '5.3.2'
     id 'maven-publish'
@@ -11,7 +12,15 @@ plugins {
 }
 
 group 'net.william278'
-version "$ext.plugin_version${versionMetadata()}"
+// Local test builds may add a label (-Ptestonly=rc2 -> 1.0.0-...-testonly.rc2)
+// so latest.log identifies exactly which build ran.
+def testonlyLabel = project.findProperty('testonly')
+// Release-probe override used only by the gate: a release-shaped version
+// (plain numbers, no "-" metadata) exactly as given, to prove a jar boots
+// with the real release shape. 9.9.9 so a probe jar is never mistaken for
+// a release. Probe jars never leave validation/.
+def releaseProbe = project.findProperty('releaseProbeVersion')
+version releaseProbe ?: "$ext.plugin_version${versionMetadata()}${testonlyLabel ? "-testonly.$testonlyLabel" : ''}"
 description "$ext.plugin_description"
 defaultTasks 'applyLicenses', 'build'
 
@@ -26,34 +35,11 @@ ext {
     set 'mongodb_driver_version', mongodb_driver_version.toString()
 }
 
+// Publishing: upstream's william278.net repositories are removed — a fork has
+// no business publishing under net.william278 coordinates. maven-publish stays
+// for mavenLocal (ClopLib resolution and local installs).
 publishing {
     repositories {
-        if (System.getenv("RELEASES_MAVEN_USERNAME") != null) {
-            maven {
-                name = "william278-releases"
-                url = "https://repo.william278.net/releases"
-                credentials {
-                    username = System.getenv("RELEASES_MAVEN_USERNAME")
-                    password = System.getenv("RELEASES_MAVEN_PASSWORD")
-                }
-                authentication {
-                    basic(BasicAuthentication)
-                }
-            }
-        }
-        if (System.getenv("SNAPSHOTS_MAVEN_USERNAME") != null) {
-            maven {
-                name = "william278-snapshots"
-                url = "https://repo.william278.net/snapshots"
-                credentials {
-                    username = System.getenv("SNAPSHOTS_MAVEN_USERNAME")
-                    password = System.getenv("SNAPSHOTS_MAVEN_PASSWORD")
-                }
-                authentication {
-                    basic(BasicAuthentication)
-                }
-            }
-        }
     }
 }
 
@@ -68,6 +54,11 @@ allprojects {
 
     compileJava.options.encoding = 'UTF-8'
     compileJava.options.release.set 21
+    // paper-api 26.2 targets Java 25 (class file major 69);
+    // the paper module must compile with release 25 on JDK 25.
+    if (project.name == 'paper') {
+        compileJava.options.release.set 25
+    }
     javadoc.options.encoding = 'UTF-8'
     javadoc.options.addStringOption('Xdoclint:none', '-quiet')
 
@@ -97,6 +88,10 @@ allprojects {
     license {
         rule(rootProject.file('HEADER'))
         include('**/*.java')
+        // Vendored libraries with their own licences (MIT for minedown;
+        // MPL-2.0 for FabricPluginMessaging — file-level copyleft, header kept)
+        exclude('de/themoep/**')
+        exclude('com/pokeskies/**')
     }
 
     test {
@@ -104,9 +99,35 @@ allprojects {
     }
 
     processResources {
-        filesMatching(['**/*.json', '**/*.yml']) {
-            filter ReplaceTokens as Class, beginToken: '${', endToken: '}',
-                    tokens: rootProject.ext.properties
+        // FIX (stale plugin.yml defect): ReplaceTokens filter tokens are NOT
+        // tracked as task inputs, so a version bump (e.g. -Ptestonly=rc2) left processResources
+        // UP-TO-DATE and packaged the OLD version string into plugin.yml, so every paper shadow
+        // jar shipped a stale plugin.yml version. Declaring the tokens as an
+        // input makes version changes correctly invalidate the task.
+        inputs.property 'tokens', {
+            ['version'              : rootProject.version.toString(),
+             'description'          : rootProject.description.toString(),
+             'jedis_version'        : rootProject.ext.jedis_version.toString(),
+             'mysql_driver_version' : rootProject.ext.mysql_driver_version.toString(),
+             'mariadb_driver_version': rootProject.ext.mariadb_driver_version.toString(),
+             'sqlite_driver_version' : rootProject.ext.sqlite_driver_version.toString(),
+             'mongodb_driver_version': rootProject.ext.mongodb_driver_version.toString()]
+        }
+        // Only the plugin ymls are token-filtered: upstream passes rootProject.ext.properties
+        // directly as ReplaceTokens tokens; that map contains non-String/null values (e.g.
+        // grgit=null, javaVersion=21) which fail the Ant Hashtable cast on Gradle 8.14/9.4.1.
+        // Token-bearing files are ONLY bukkit/paper plugin ymls, so restrict filesMatching to
+        // those and pass a coerced String-only map.
+        def stringTokens = ['version'             : rootProject.version.toString(),
+                            'description'         : rootProject.description.toString(),
+                            'jedis_version'       : rootProject.ext.jedis_version.toString(),
+                            'mysql_driver_version' : rootProject.ext.mysql_driver_version.toString(),
+                            'mariadb_driver_version': rootProject.ext.mariadb_driver_version.toString(),
+                            'sqlite_driver_version' : rootProject.ext.sqlite_driver_version.toString(),
+                            'mongodb_driver_version': rootProject.ext.mongodb_driver_version.toString()]
+        filesMatching(['plugin.yml', 'paper-plugin.yml', 'paper-libraries.yml']) {
+            filter ReplaceTokens as Class, beginToken: '\${', endToken: '}',
+                    tokens: stringTokens
         }
     }
 }
@@ -127,15 +148,32 @@ subprojects {
     }
     base.archivesName = name
 
-    // Fabric-specific configuration
+    // Fabric-specific configuration: 26.x nodes build on
+    // unobfuscated (Mojang-named) Minecraft and target Java 25; older nodes Java 21)
     if (project.parent?.name?.equals('fabric')) {
-        apply plugin: 'dev.architectury.loom'
-        compileJava.options.release.set 21
+        def isUnobfuscatedRuntime = isUnobfuscatedMinecraftVersion(project.name)
+        if (isUnobfuscatedRuntime) {
+            java {
+                toolchain {
+                    languageVersion = JavaLanguageVersion.of(25)
+                }
+            }
+            compileJava.options.release.set 25
+        } else {
+            java {
+                toolchain {
+                    languageVersion = JavaLanguageVersion.of(21)
+                }
+            }
+            compileJava.options.release.set 21
+        }
         version += "+mc.${project.name}"
     }
 
     jar {
-        from '../LICENSE'
+        from(rootProject.file('LICENSE'))
+        from(rootProject.file('NOTICE'))
+        from(rootProject.file('THIRD_PARTY_LICENSES.md'))
     }
 
     shadowJar {
@@ -185,14 +223,19 @@ subprojects {
             }
 
             if (project.parent?.name?.equals('fabric')) {
-                publications {
-                    "mavenJavaFabric_${project.name.replace('.', '_')}"(MavenPublication) {
-                        groupId = 'net.william278.huskclaims'
-                        artifactId = 'huskclaims-fabric'
-                        version = "$rootProject.version+$project.name"
-                        artifact remapJar
-                        artifact sourcesJar
-                        artifact javadocJar
+                afterEvaluate {
+                    def publishedJarTask = tasks.named(project.ext.fabricRuntimeJarTaskName as String)
+                    publishing {
+                        publications {
+                            "mavenJavaFabric_${project.name.replace('.', '_')}"(MavenPublication) {
+                                groupId = 'net.william278.huskclaims'
+                                artifactId = 'huskclaims-fabric'
+                                version = "$rootProject.version+$project.name"
+                                artifact publishedJarTask
+                                artifact sourcesJar
+                                artifact javadocJar
+                            }
+                        }
                     }
                 }
             }
@@ -203,13 +246,19 @@ subprojects {
     clean.delete "$rootDir/target"
 }
 
-logger.lifecycle("Building HuskClaims ${version} by William278")
+logger.lifecycle("Building HuskClaimsPlus ${version}")
+
+static boolean isUnobfuscatedMinecraftVersion(String version) {
+    def parts = version.tokenize('.')
+    return !parts.isEmpty() && parts.first().isInteger() && parts.first().toInteger() >= 26
+}
 
 @SuppressWarnings('GrMethodMayBeStatic')
 def versionMetadata() {
-    // Require grgit
+    // HuskClaimsPlus: without git metadata (a source archive) use the version as-is
+    // instead of '-unknown'.
     if (grgit == null) {
-        return '-unknown'
+        return ''
     }
 
     // If unclean, return the last commit hash with -indev

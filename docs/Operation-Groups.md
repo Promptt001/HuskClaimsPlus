@@ -1,7 +1,7 @@
 HuskClaims supports toggling Operation Groups within a claim to determine whether the plugin should prevent certain operations from occurring in a claim.
 
 ## Toggling Operation Groups
-Operation Groups can be configured in the plugin [[config]] and managed by any user who has the `MANAGE_OPERATION_GROUPS` [[trust]] privilege in a claim. Effectively, Operation Groups provide a way of letting players fine tune the flag settings of your claim. 
+Operation Groups can be configured in the plugin [config](config.md) and managed by any user who has the `MANAGE_OPERATION_GROUPS` [trust](trust.md) privilege in a claim. Effectively, Operation Groups provide a way of letting players fine tune the flag settings of your claim. 
 
 By default, HuskClaims provides the `Claim Explosions` operation group to let you toggle whether explosion damage should be allowed in a claim.
 

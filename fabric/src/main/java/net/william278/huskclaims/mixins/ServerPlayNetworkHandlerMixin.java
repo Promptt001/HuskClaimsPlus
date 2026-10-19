@@ -19,10 +19,10 @@
 
 package net.william278.huskclaims.mixins;
 
-import net.minecraft.network.packet.c2s.play.PlayerActionC2SPacket;
-import net.minecraft.network.packet.c2s.play.UpdateSelectedSlotC2SPacket;
-import net.minecraft.server.network.ServerPlayNetworkHandler;
-import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
+import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
+import net.minecraft.server.network.ServerGamePacketListenerImpl;
+import net.minecraft.server.level.ServerPlayer;
 import net.william278.huskclaims.util.PlayerActionEvents;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -30,23 +30,26 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-@Mixin(ServerPlayNetworkHandler.class)
+@Mixin(ServerGamePacketListenerImpl.class)
 public abstract class ServerPlayNetworkHandlerMixin {
 
     @Shadow
-    public ServerPlayerEntity player;
+    public ServerPlayer player;
 
-    @Inject(method = "onPlayerAction", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/network/ServerPlayerEntity;clearActiveItem()V"))
-    private void onPlayerActionMixin(PlayerActionC2SPacket packet, CallbackInfo ci) {
+    // 26.2: the mojmap handler is handlePlayerAction; its swap-hands branch
+    // calls setItemInHand(air) then stopUsingItem()V, so anchor on
+    // stopUsingItem — the last call in the swap path, same point clearActiveItem occupied.
+    @Inject(method = "handlePlayerAction", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerPlayer;stopUsingItem()V"))
+    private void onPlayerActionMixin(ServerboundPlayerActionPacket packet, CallbackInfo ci) {
         PlayerActionEvents.AFTER_HELD_ITEM_CHANGE.invoker().swapHands(
-                player, player.getMainHandStack(), player.getOffHandStack()
+                player, player.getMainHandItem(), player.getOffhandItem()
         );
     }
 
-    @Inject(method = "onUpdateSelectedSlot", at = @At("TAIL"))
-    private void onUpdateSelectedSlotMixin(UpdateSelectedSlotC2SPacket packet, CallbackInfo ci) {
+    @Inject(method = "handleSetCarriedItem", at = @At("TAIL"))
+    private void onUpdateSelectedSlotMixin(ServerboundSetCarriedItemPacket packet, CallbackInfo ci) {
         PlayerActionEvents.AFTER_HELD_ITEM_CHANGE.invoker().swapHands(
-                player, player.getMainHandStack(), player.getOffHandStack()
+                player, player.getMainHandItem(), player.getOffhandItem()
         );
     }
 

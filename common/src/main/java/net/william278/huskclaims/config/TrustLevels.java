@@ -39,10 +39,11 @@ import java.util.Set;
 public class TrustLevels {
 
     protected static final String CONFIG_HEADER = """
-            ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-            ┃   HuskClaims - Trust Levels  ┃
-            ┃    Developed by William278   ┃
-            ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+            ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            ┃ HuskClaimsPlus · Trust Levels
+            ┃ Based on HuskClaims by William278 (Apache-2.0)
+            ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            ┣╸ HuskClaimsPlus: https://github.com/Promptt001/HuskClaimsPlus
             ┣╸ List of trust levels users & groups can be assigned to in claims
             ┣╸ Config Help: https://william278.net/docs/huskclaims/trust/
             ┗╸ Documentation: https://william278.net/docs/huskclaims/
@@ -86,7 +87,9 @@ public class TrustLevels {
                             TrustLevel.Privilege.MANAGE_CHILD_CLAIMS,
                             TrustLevel.Privilege.MANAGE_OPERATION_GROUPS,
                             TrustLevel.Privilege.MANAGE_BANS,
-                            TrustLevel.Privilege.MAKE_PRIVATE
+                            TrustLevel.Privilege.MAKE_PRIVATE,
+                            // HuskClaimsPlus: Manage trust can set, rename and unset the claim warp
+                            TrustLevel.Privilege.MANAGE_WARP
                     ))
                     .build(),
 
@@ -136,8 +139,6 @@ public class TrustLevels {
                             OperationType.BLOCK_INTERACT,
                             OperationType.ENTITY_INTERACT,
                             OperationType.REDSTONE_INTERACT,
-                            OperationType.PLACE_VEHICLE,
-                            OperationType.BREAK_VEHICLE,
                             OperationType.ENDER_PEARL_TELEPORT,
                             OperationType.START_RAID,
                             OperationType.CONTAINER_OPEN
@@ -156,8 +157,6 @@ public class TrustLevels {
                             OperationType.BLOCK_INTERACT,
                             OperationType.ENTITY_INTERACT,
                             OperationType.REDSTONE_INTERACT,
-                            OperationType.PLACE_VEHICLE,
-                            OperationType.BREAK_VEHICLE,
                             OperationType.ENDER_PEARL_TELEPORT,
                             OperationType.START_RAID
                     ))

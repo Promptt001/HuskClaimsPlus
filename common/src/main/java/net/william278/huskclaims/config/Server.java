@@ -33,13 +33,17 @@ import org.jetbrains.annotations.NotNull;
 public class Server {
 
     static final String CONFIG_HEADER = """
-            ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-            ┃    HuskClaims - Server ID    ┃
-            ┃    Developed by William278   ┃
-            ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-            ┣╸ This file should contain the ID of this server as defined in your proxy config.
+            ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            ┃ HuskClaimsPlus · Server ID
+            ┃ Based on HuskClaims by William278 (Apache-2.0)
+            ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            ┣╸ HuskClaimsPlus: https://github.com/Promptt001/HuskClaimsPlus
+            ┣╸ This file contains the ID of this server as defined in your proxy config.
             ┣╸ If you join it using /server alpha, then set it to 'alpha' (case-sensitive)
-            ┗╸ You only need to touch this if you're using cross-server mode.""";
+            ┣╸ You only need to touch this if you're using cross-server mode.
+            ┣╸ Config Help: https://william278.net/docs/huskclaims/
+            ┗╸ Documentation: https://william278.net/docs/huskclaims/
+            """;
 
     private String name = "server";
 

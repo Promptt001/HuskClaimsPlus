@@ -46,10 +46,11 @@ public final class Settings {
 
     static final String CONFIG_HEADER = """
             ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-            ┃      HuskClaims - Config     ┃
-            ┃    Developed by William278   ┃
+            ┃ HuskClaimsPlus - Config (26.2)┃
+            ┃ Based on HuskClaims (Apache-2)┃
+            ┃ by William278. Fork by Promptt001
             ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-            ┣╸ Information: https://william278.net/project/huskclaims/
+            ┣╸ HuskClaimsPlus: https://github.com/Promptt001/HuskClaimsPlus
             ┣╸ Config Help: https://william278.net/docs/huskclaims/config/
             ┗╸ Documentation: https://william278.net/docs/huskclaims/""";
 
@@ -177,7 +178,6 @@ public final class Settings {
         private List<OperationType> defaultFlags = List.of(
                 OperationType.PLAYER_DAMAGE_MONSTER,
                 OperationType.EXPLOSION_DAMAGE_ENTITY,
-                OperationType.PLAYER_DAMAGE_PLAYER,
                 OperationType.MONSTER_SPAWN,
                 OperationType.PASSIVE_MOB_SPAWN
         );
@@ -186,7 +186,6 @@ public final class Settings {
         private List<OperationType> adminFlags = List.of(
                 OperationType.PLAYER_DAMAGE_MONSTER,
                 OperationType.EXPLOSION_DAMAGE_ENTITY,
-                OperationType.PLAYER_DAMAGE_PLAYER,
                 OperationType.MONSTER_SPAWN,
                 OperationType.PASSIVE_MOB_SPAWN
         );
@@ -291,6 +290,29 @@ public final class Settings {
 
         @Comment("Settings for banning users from claims")
         private BanSettings bans = new BanSettings();
+
+        @Comment({"Settings for public claim warps (teleport anchors set by claim owners, visited via /visit)",
+                "Setting a warp is an explicit opt-in by the claim owner; claims without a warp behave as stock."})
+        private ClaimWarpSettings warps = new ClaimWarpSettings();
+
+        @Getter
+        @Configuration
+        @NoArgsConstructor(access = AccessLevel.PRIVATE)
+        public static class ClaimWarpSettings {
+
+            @Comment("Whether to enable claim warps (/claimwarp set/rename/unset, /visit, /visits)")
+            private boolean enabled = true;
+
+            @Comment("The maximum length of a warp name")
+            private int maxNameLength = 32;
+
+            @Comment("Whether warp names must be unique across the whole server (recommended; /visit lookup is by name)")
+            private boolean enforceUniqueNames = true;
+
+            @Comment("Command cooldown, in seconds, between warp visits per player (0 to disable)")
+            private float visitCooldownSeconds = 3.0f;
+
+        }
 
         @Getter
         @Configuration
@@ -540,6 +562,290 @@ public final class Settings {
             private boolean preventDestruction = true;
         }
 
+    }
+
+    @Comment({"Settings for the claim GUI, opened with /claimgui (or /huskclaimgui)",
+            "Slots count from 0, left to right and top to bottom: the top row is 0-8, the next row 9-17, and so on.",
+            "See https://github.com/Promptt001/HuskClaimsPlus/blob/main/docs/Claim-Menu.md for every menu, icon key and permission."})
+    private GuiSettings gui = new GuiSettings();
+
+    @Getter
+    @Configuration
+    @NoArgsConstructor(access = AccessLevel.PRIVATE)
+    public static class GuiSettings {
+
+        /**
+         * The layout version this build's defaults belong to. Raise it whenever a default slot,
+         * row count or icon changes, so {@link #migrateLayout()} brings older files up to date.
+         */
+        public static final int CURRENT_LAYOUT_VERSION = 5;
+
+        @Comment({"Layout version of the menu settings below. Don't edit this.",
+                "When a plugin update changes the default menu layout, it resets the slots, rows and icons below",
+                "and saves your previous config.yml next to this one first.",
+                "Whether the GUI is enabled, timeouts, cooldowns and the public access rules are always kept."})
+        // A file written before layout versions existed has no value here and reads as 0, which is always older
+        private int layoutVersion = 0;
+
+        @Comment("Whether to enable the claim GUI and its /claimgui and /huskclaimgui commands")
+        private boolean enabled = true;
+
+        @Comment({"Seconds a player must wait between claim tools from the Claim Menu (0 for no wait)",
+                "The wait carries on if the player leaves and rejoins"})
+        private int claimToolCooldownSeconds = 60;
+
+        @Comment({"Whether player names typed into GUI prompts may start with one extra character",
+                "Turn this on if Bedrock players join through Geyser and Floodgate with a name prefix, such as .Steve"})
+        private boolean allowNamePrefix = false;
+
+        @Comment("Seconds before an unanswered chat prompt, such as \"type a player name\", is cancelled (at least 30)")
+        private int inputTimeoutSeconds = 60;
+
+        @Comment("Item that fills the empty slots of every menu")
+        private String fillerMaterial = "minecraft:black_stained_glass_pane";
+
+        @Comment("The confirmation screen shown before anything that changes a claim or spends claim blocks")
+        private ConfirmMenuSettings confirmMenu = new ConfirmMenuSettings();
+
+        @Getter
+        @Configuration
+        @NoArgsConstructor(access = AccessLevel.PRIVATE)
+        public static class ConfirmMenuSettings {
+            @Comment("Rows in the confirmation screen (1-6). It grows if a slot below needs more.")
+            private int rows = 3;
+
+            @Comment("Slot of the item that describes what will happen")
+            private int infoSlot = 13;
+
+            @Comment("Slot of the Confirm button")
+            private int confirmSlot = 11;
+
+            @Comment("Slot of the Cancel button, which returns to the previous menu")
+            private int cancelSlot = 15;
+        }
+
+        @Comment({"The Claim Menu that /claimgui opens",
+                "By default its five buttons form a square, like the five on a die, with My Claims in the centre"})
+        private MainMenuSettings mainMenu = new MainMenuSettings();
+
+        @Getter
+        @Configuration
+        @NoArgsConstructor(access = AccessLevel.PRIVATE)
+        public static class MainMenuSettings {
+            @Comment("Rows in the Claim Menu (1-6). It grows if a slot below needs more.")
+            private int rows = 3;
+
+            @Comment("Slot of the Public Claims button (top left of the square), shown while claim warps are enabled")
+            private int publicClaimsSlot = 3;
+
+            @Comment("Slot of the Friends & Trust button (top right)")
+            private int trustSlot = 5;
+
+            @Comment("Slot of the My Claims button (centre)")
+            private int myClaimsSlot = 13;
+
+            @Comment("Slot of the button that hands out a claim tool (bottom left)")
+            private int claimToolSlot = 21;
+
+            @Comment("Slot of the Claim Blocks button (bottom right)")
+            private int blocksSlot = 23;
+        }
+
+        @Comment("The Claim Blocks menu: balance, buying and gifting")
+        private BlocksMenuSettings blocksMenu = new BlocksMenuSettings();
+
+        @Getter
+        @Configuration
+        @NoArgsConstructor(access = AccessLevel.PRIVATE)
+        public static class BlocksMenuSettings {
+            @Comment("Rows in the Claim Blocks menu (1-6). It grows if a slot below needs more.")
+            private int rows = 3;
+            @Comment("Slot of the balance button")
+            private int balanceSlot = 11;
+            @Comment("Slot of the buy button (needs an economy plugin)")
+            private int buySlot = 13;
+            @Comment("Slot of the gift button")
+            private int giftSlot = 15;
+            @Comment("Slot of the Back button")
+            private int backSlot = 22;
+        }
+
+        @Comment("The My Claims menu: one icon per claim you own. It always has six rows; claims fill the top five.")
+        private ClaimListMenuSettings claimListMenu = new ClaimListMenuSettings();
+
+        @Getter
+        @Configuration
+        @NoArgsConstructor(access = AccessLevel.PRIVATE)
+        public static class ClaimListMenuSettings {
+            @Comment("Slot of the message shown when you have no claims yet")
+            private int emptySlot = 22;
+            @Comment("Slot of the Back button")
+            private int backSlot = 45;
+            @Comment("Slot of the previous page button")
+            private int prevSlot = 47;
+            @Comment("Slot of the Create Claim button")
+            private int createSlot = 49;
+            @Comment("Slot of the next page button")
+            private int nextSlot = 51;
+            @Comment("Slot of the sort button")
+            private int sortSlot = 53;
+        }
+
+        @Comment("The menu for one claim: name, privacy, trust, public permissions, warp, resizing and unclaiming")
+        private ClaimSettingsMenuSettings claimSettingsMenu = new ClaimSettingsMenuSettings();
+
+        @Getter
+        @Configuration
+        @NoArgsConstructor(access = AccessLevel.PRIVATE)
+        public static class ClaimSettingsMenuSettings {
+            @Comment("Rows in the claim menu (1-6). It grows if a slot below needs more.")
+            private int rows = 6;
+            @Comment("Slot of the claim's name and details")
+            private int infoSlot = 4;
+            @Comment("Slot of the Rename button")
+            private int renameSlot = 10;
+            @Comment("Slot of the private claim switch")
+            private int privacySlot = 12;
+            @Comment("Slot of the Friends & Trust button")
+            private int publicAccessSlot = 14;
+            @Comment("Slot of the Public Permissions button")
+            private int publicPermissionsSlot = 16;
+            @Comment("Slot of the trusted players list")
+            private int trusteesSlot = 19;
+            @Comment("Slot of the child claims button, shown when the claim has child claims")
+            private int childrenSlot = 21;
+            @Comment("Slot of the Resize button")
+            private int resizeSlot = 23;
+            @Comment("Slot of the claim warp button")
+            private int warpSlot = 25;
+            @Comment("Slot of the Back button")
+            private int backSlot = 45;
+            @Comment("Slot of the Unclaim button, which asks for confirmation")
+            private int unclaimSlot = 53;
+        }
+
+        @Comment("The list of players, groups and tags trusted in a claim. It always has six rows.")
+        private TrusteesMenuSettings trusteesMenu = new TrusteesMenuSettings();
+
+        @Getter
+        @Configuration
+        @NoArgsConstructor(access = AccessLevel.PRIVATE)
+        public static class TrusteesMenuSettings {
+            @Comment("Slot of the message shown when nobody is trusted")
+            private int emptySlot = 22;
+            @Comment("Slot of the previous page button")
+            private int prevSlot = 47;
+            @Comment("Slot of the Add Player button")
+            private int addSlot = 49;
+            @Comment("Slot of the next page button")
+            private int nextSlot = 51;
+            @Comment("Slot of the Back button")
+            private int backSlot = 45;
+        }
+
+        @Comment("Which trust level players may give to everyone (the #public tag) in Friends & Trust")
+        private PublicAccessSettings publicAccess = new PublicAccessSettings();
+
+        @Getter
+        @Configuration
+        @NoArgsConstructor(access = AccessLevel.PRIVATE)
+        public static class PublicAccessSettings {
+            @Comment({"The highest trust level, by id, that players may give to everyone",
+                    "Levels that carry privileges, such as managing trustees, can never be given to everyone"})
+            private String maxLevel = "container";
+        }
+
+        @Comment("The Public Permissions menu: single actions a claim owner may allow for every player")
+        private PublicPermissionsSettings publicPermissions = new PublicPermissionsSettings();
+
+        @Getter
+        @Configuration
+        @NoArgsConstructor(access = AccessLevel.PRIVATE)
+        public static class PublicPermissionsSettings {
+            @Comment("Whether the Public Permissions menu is available")
+            private boolean enabled = true;
+            @Comment({"Actions players may allow for everyone, in the order the menu shows them",
+                    "Use operation type names. Only list actions a visitor performs, not world events like explosions."})
+            private List<String> allowed = List.of(
+                    "PLAYER_DAMAGE_MONSTER",       // Killing monsters (allowed by default in new claims)
+                    "PLAYER_DAMAGE_ENTITY",        // Hurting and killing animals
+                    "BLOCK_INTERACT",              // Using doors, trapdoors and gates
+                    "REDSTONE_INTERACT",           // Using levers, buttons and pressure plates
+                    "CONTAINER_OPEN",              // Opening chests and other containers
+                    "ENTITY_INTERACT",             // Trading with villagers, using item frames and armour stands
+                    "FARM_BLOCK_INTERACT",         // Using crops and farmland
+                    "FARM_BLOCK_BREAK",            // Harvesting crops
+                    "FARM_BLOCK_PLACE",            // Planting crops
+                    "ENDER_PEARL_TELEPORT",        // Throwing ender pearls into the claim
+                    "PLACE_VEHICLE",               // Placing boats and minecarts
+                    "BREAK_VEHICLE"                // Breaking boats and minecarts
+            );
+            @Comment("Actions that show a confirmation screen before they are allowed for everyone")
+            private List<String> confirmOnEnable = List.of("CONTAINER_OPEN", "PLAYER_DAMAGE_PLAYER", "FARM_BLOCK_BREAK");
+        }
+
+        @Comment("The Create Claim and Resize menus")
+        private CreateClaimSettings createClaim = new CreateClaimSettings();
+
+        @Getter
+        @Configuration
+        @NoArgsConstructor(access = AccessLevel.PRIVATE)
+        public static class CreateClaimSettings {
+            @Comment({"Whether claims can be created and resized from the GUI without holding the claim tool,",
+                    "even when claims.require_tool_for_commands is on"})
+            private boolean bypassToolRequirement = true;
+            @Comment("How far the three - and + buttons move an edge, in blocks (shift-click moves five times as far)")
+            private List<Integer> steps = List.of(1, 5, 10);
+        }
+
+        @Comment({"The item each GUI icon uses. Remove an entry to use the built-in icon.",
+                "https://github.com/Promptt001/HuskClaimsPlus/blob/main/docs/Claim-Menu.md lists every icon key, including ones not shown here."})
+        private Map<String, String> iconMaterials = Map.ofEntries(
+                Map.entry("main.my_claims", "minecraft:grass_block"),
+                Map.entry("main.public_claims", "minecraft:ender_eye"),
+                Map.entry("main.trust", "minecraft:diamond"),
+                Map.entry("main.blocks", "minecraft:gold_ingot"),
+                Map.entry("main.claim_tool", "minecraft:golden_shovel"),
+                Map.entry("blocks.balance", "minecraft:gold_nugget"),
+                Map.entry("blocks.buy", "minecraft:emerald"),
+                Map.entry("blocks.gift", "minecraft:player_head"),
+                Map.entry("blocks.back", "minecraft:arrow"),
+                Map.entry("trust.level.access", "minecraft:oak_door"),
+                Map.entry("trust.level.container", "minecraft:chest"),
+                Map.entry("trust.level.build", "minecraft:bricks"),
+                Map.entry("trust.level.manage", "minecraft:golden_helmet")
+        );
+
+        /**
+         * Brings the menu layout up to date when the file was written for an older layout.
+         * <p>
+         * Slots, rows, icons and the filler item are replaced with this version's defaults.
+         * Everything that is a server rule rather than a layout choice is kept: whether the GUI
+         * is enabled, timeouts, cooldowns, the name prefix option, the tool bypass, and the
+         * public access and public permission rules.
+         *
+         * @return whether anything was reset, in which case the caller saves config.yml
+         */
+        public boolean migrateLayout() {
+            if (layoutVersion >= CURRENT_LAYOUT_VERSION) {
+                return false;
+            }
+            final GuiSettings defaults = new GuiSettings();
+            fillerMaterial = defaults.fillerMaterial;
+            confirmMenu = defaults.confirmMenu;
+            mainMenu = defaults.mainMenu;
+            blocksMenu = defaults.blocksMenu;
+            claimListMenu = defaults.claimListMenu;
+            claimSettingsMenu = defaults.claimSettingsMenu;
+            trusteesMenu = defaults.trusteesMenu;
+            // The step sizes are layout, but the tool bypass is a server rule
+            final boolean bypass = createClaim.bypassToolRequirement;
+            createClaim = defaults.createClaim;
+            createClaim.bypassToolRequirement = bypass;
+            iconMaterials = defaults.iconMaterials;
+            layoutVersion = CURRENT_LAYOUT_VERSION;
+            return true;
+        }
     }
 
     @Comment("Settings for integration hooks with other plugins")

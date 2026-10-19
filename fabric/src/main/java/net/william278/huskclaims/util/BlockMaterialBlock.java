@@ -21,7 +21,7 @@ package net.william278.huskclaims.util;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import net.minecraft.block.Block;
+import net.minecraft.world.level.block.Block;
 import org.jetbrains.annotations.NotNull;
 
 @Getter
@@ -38,6 +38,7 @@ public class BlockMaterialBlock extends BlockProvider.MaterialBlock {
     @NotNull
     @Override
     public String getMaterialKey() {
-        return data.getDefaultState().getRegistryEntry().getKey().toString();
+        return data.defaultBlockState().typeHolder().unwrapKey()
+                .map(k -> k.identifier().toString()).orElse("unknown");
     }
 }

@@ -140,6 +140,21 @@ public interface CommandProvider {
             commands.add(new ClaimPrivateCommand(getPlugin()));
         }
 
+        // Register claim warps (teleport anchors set by claim owners)
+        if (getPlugin().getSettings().getClaims().getWarps().isEnabled()) {
+            commands.add(new ClaimWarpCommand(getPlugin()));
+            commands.add(new ClaimWarpListCommand(getPlugin()));
+            commands.add(new VisitCommand(getPlugin()));
+        }
+
+        // Register the built-in claim GUI (/huskclaimgui, /claimgui) — only on
+        // platforms that implement inventory menus and with the GUI enabled. The
+        // command set is rebuilt per session, and execute re-checks isGuiAvailable(),
+        // so a session with the GUI off never shows a dead command
+        if (getPlugin() instanceof GuiProvider && getPlugin().getSettings().getGui().isEnabled()) {
+            commands.add(new ClaimGuiCommand(getPlugin()));
+        }
+
         // Register claim commands
         getPlugin().getSettings().getClaims().getEnabledClaimingModes().stream()
                 .filter(mode -> !mode.getCommandAliases().isEmpty())

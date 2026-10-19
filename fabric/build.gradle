@@ -1,24 +1,50 @@
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
+
 plugins {
     id 'gg.essential.multi-version'
     id 'gg.essential.defaults'
 }
 
-loom.serverOnlyMinecraftJar()
+def mcVersionParts = project.name.tokenize('.').collect { it as int }
+def mcMajor = mcVersionParts[0]
+def isUnobfuscatedRuntime = mcMajor >= 26
+// The main node reads the sibling mainProject marker (ClopLib pattern)
+def isMainProject = project.name == file("../mainProject").readLines()[0].trim()
+project.ext.fabricRuntimeJarTaskName = isUnobfuscatedRuntime ? 'packageFabricJar' : 'remapJar'
+
 
 repositories {
+    mavenLocal { // locally published cloplib-fabric 26.2 port (scoped: nothing else may leak in)
+        content {
+            includeModule('net.william278.cloplib', 'cloplib-fabric')
+        }
+    }
+    maven { url 'https://repo.william278.net/releases/' }
     maven { url 'https://maven.impactdev.net/repository/development/' }
     maven { url 'https://maven.nucleoid.xyz/' }
+    maven { url 'https://jitpack.io' }
 }
 
 dependencies {
-    modImplementation include("net.kyori:adventure-platform-fabric:${fabric_adventure_platform_version}")
-    modImplementation include("me.lucko:fabric-permissions-api:${fabric_permissions_api_version}")
-    modImplementation include("eu.pb4:placeholder-api:${fabric_placeholder_api_version}")
-    modImplementation include("net.impactdev.impactor.api:economy:${fabric_impactor_api_version}")
-    modImplementation include("net.william278.cloplib:cloplib-fabric:2.0.13+$project.name")
-    modImplementation include("net.william278.toilet:toilet-fabric:1.0.15+$project.name")
-    modImplementation include("com.github.PokeSkies:FabricPluginMessaging:f621c4fcf6")
-    modImplementation "net.fabricmc.fabric-api:fabric-api:${fabric_api_version}"
+    def bundledImplementation = { notation ->
+        add(isUnobfuscatedRuntime ? 'implementation' : 'modImplementation', include(notation))
+    }
+    def fabricApiDependency = { notation ->
+        add(isUnobfuscatedRuntime ? 'implementation' : 'modImplementation', notation)
+    }
+
+    bundledImplementation("net.kyori:adventure-platform-fabric:${fabric_adventure_platform_version}")
+    bundledImplementation("me.lucko:fabric-permissions-api:${fabric_permissions_api_version}")
+    bundledImplementation("eu.pb4:placeholder-api:${fabric_placeholder_api_version}")
+    bundledImplementation("net.impactdev.impactor.api:economy:${fabric_impactor_api_version}")
+    bundledImplementation("net.william278.cloplib:cloplib-fabric:${fabric_cloplib_version}")
+    bundledImplementation("eu.pb4:sgui:${fabric_sgui_version}")
+    bundledImplementation("net.william278.toilet:toilet-fabric:${fabric_toilet_version}")
+    if (!isUnobfuscatedRuntime) {
+        bundledImplementation("com.github.PokeSkies:FabricPluginMessaging:f621c4fcf6")
+    }
+    fabricApiDependency("net.fabricmc.fabric-api:fabric-api:${fabric_api_version}")
 
     // Manually include config deps due to the way including api deps works
     implementation include("de.exlll:configlib-core:4.6.1")
@@ -26,7 +52,6 @@ dependencies {
     implementation include('org.apache.commons:commons-pool2:2.13.0')
 
     // Include driver deps due to no runtime dep loading support
-    implementation include('org.apache.commons:commons-pool2:2.13.0')
     implementation include("org.xerial:sqlite-jdbc:$sqlite_driver_version")
     implementation include("com.mysql:mysql-connector-j:$mysql_driver_version")
     implementation include("org.mariadb.jdbc:mariadb-java-client:$mariadb_driver_version")
@@ -34,7 +59,11 @@ dependencies {
     implementation include("redis.clients:jedis:$jedis_version")
     implementation include("redis.clients.authentication:redis-authx-core:0.1.1-beta2")
 
-    modImplementation "net.william278.huskhomes:huskhomes-fabric:4.9.9+$project.name"
+    // F7 26.3: no huskhomes-fabric artifact exists for 26.3 — only 26.2 declares the
+    // dependency; the 26.3 node ships a no-op FabricHuskHomesHook override instead.
+    if (project.name != '26.3') {
+        modImplementation "net.william278.huskhomes:huskhomes-fabric:${fabric_huskhomes_version}"
+    }
     compileOnly 'org.jetbrains:annotations:26.0.2'
     compileOnly 'org.projectlombok:lombok:1.18.38'
 
@@ -49,12 +78,49 @@ dependencies {
     }
 }
 
+if (isUnobfuscatedRuntime) {
+    // Only the MAIN node compiles the shared sources raw (its
+    // version is the version the raw code targets; //$$ lines stay comments there).
+    // Non-main nodes run the standard EGT preprocess flow, which rewrites guards
+    // for their own version — the custom raw-source override below was a
+    // single-node-era hack that silently bypassed preprocessing on 26.3.
+    if (isMainProject) {
+        def sharedJava = file('../src/main/java')
+        def versionSpecificJava = file('src/main/java')
+        def overriddenRelativePaths = versionSpecificJava.exists()
+                ? fileTree(versionSpecificJava).matching { include '**/*.java' }.files.collect {
+                    versionSpecificJava.toPath().relativize(it.toPath()).toString()
+                } as Set
+                : [] as Set
+
+        tasks.named('compileJava', JavaCompile).configure {
+            source = files(
+                    fileTree(sharedJava) {
+                        overriddenRelativePaths.each { exclude it }
+                    },
+                    fileTree(versionSpecificJava)
+            )
+        }
+
+        tasks.named('sourcesJar').configure {
+            duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+        }
+    }
+}
+
 processResources {
     filesMatching(Arrays.asList("fabric.mod.json")) {
+        // Upstream relies on the root subprojects processResources ReplaceTokens
+        // ('**/*.json', rootProject.ext.properties) to expand ${description}; the root
+        // build restricts ReplaceTokens to plugin ymls, so supply it here.
         expand([
                 version: version,
+                description: rootProject.description.toString(),
                 fabric_loader_version: fabric_loader_version,
-                fabric_minecraft_version: project.name,
+                // ~ = 26.2 and any 26.2.x hotfix, but not 26.3: a hotfix that broke a
+                // mixin target fails loudly at startup (mixins are required), not
+                // silently, and the mod keeps loading on hotfixes.
+                fabric_minecraft_version: "~" + project.name,
         ])
     }
 }
@@ -62,20 +128,96 @@ processResources {
 shadowJar {
     configurations = [project.configurations.shadow]
     destinationDirectory.set(file("$projectDir/build/libs"))
+    archiveClassifier.set('dev-shadow')
 
     exclude('net.fabricmc:.*')
     exclude('net.kyori:.*')
     exclude '/mappings/*'
 }
 
-remapJar {
-    dependsOn tasks.shadowJar
-    mustRunAfter tasks.shadowJar
-    inputFile = shadowJar.archiveFile.get()
-    addNestedDependencies = true
+if (isUnobfuscatedRuntime) {
+    tasks.register('packageFabricJar', Jar) {
+        def generatedFabricModJson = layout.buildDirectory.file('tmp/packageFabricJar/fabric.mod.json')
 
-    destinationDirectory.set(file("$rootDir/target/"))
-    archiveClassifier.set('')
+        dependsOn tasks.shadowJar
+        dependsOn tasks.processIncludeJars
+        mustRunAfter tasks.shadowJar
+        mustRunAfter tasks.processIncludeJars
+
+        from(zipTree(shadowJar.archiveFile.get().asFile)) {
+            exclude 'fabric.mod.json'
+        }
+        from(generatedFabricModJson)
+        into('META-INF/jars') {
+            from("$buildDir/processIncludeJars")
+        }
+
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+        destinationDirectory.set(file("$rootDir/target/"))
+        archiveClassifier.set('')
+        archiveBaseName.set(shadowJar.archiveBaseName.get())
+        archiveVersion.set(shadowJar.archiveVersion.get())
+
+        doFirst {
+            def fabricModJson = new JsonSlurper().parse(file("$buildDir/resources/main/fabric.mod.json"))
+            fabricModJson.jars = fileTree("$buildDir/processIncludeJars")
+                    .matching { include '*.jar' }
+                    .files
+                    .sort { it.name }
+                    .collect { [file: "META-INF/jars/${it.name}"] }
+
+            def outputFile = generatedFabricModJson.get().asFile
+            outputFile.parentFile.mkdirs()
+            outputFile.text = JsonOutput.prettyPrint(JsonOutput.toJson(fabricModJson))
+        }
+    }
+
+    assemble.dependsOn(tasks.named('packageFabricJar'))
+} else {
+    remapJar {
+        dependsOn tasks.shadowJar
+        mustRunAfter tasks.shadowJar
+        inputFile = shadowJar.archiveFile.get()
+        addNestedDependencies = true
+
+        destinationDirectory.set(file("$rootDir/target/"))
+        archiveClassifier.set('')
+    }
+
+    assemble.dependsOn(tasks.named('remapJar'))
 }
+// Reject client-only imports from common/main sources.
+tasks.register('checkNoClientClasses') {
+    def sources = fileTree('../src/main/java') + fileTree('src/main/java')
+    inputs.files(sources)
+    doLast {
+        def banned = ~/^\s*import\s+(net\.minecraft\.client\.|com\.mojang\.blaze3d\.|net\.fabricmc\.fabric\.api\.client\.)/
+        def offenders = sources.files.findAll { f -> f.name.endsWith('.java') && f.readLines().any { it ==~ banned } }
+        if (!offenders.isEmpty()) {
+            throw new GradleException("Client-only imports in common sources: " + offenders*.name.join(', '))
+        }
+    }
+}
+tasks.named('check') { dependsOn 'checkNoClientClasses' }
 
-shadowJar.finalizedBy(remapJar)
+// Gametest source set. The clientGameTest loom run registration NPEs under
+// EGT 0.7.0 + architectury-loom 1.15.50 + Gradle 9.4.1 — loom's whenObjectAdded
+// run-task callback reads RunConfigSettings.getEnvironment() before any
+// script-provided create/register/afterEvaluate configuration is applied, so every
+// registration form fails configuration. Deferred to S4; exit criteria for S1
+// (identical jar class list, dedicated 2x boot, verifier green) do not need the run.
+if (isUnobfuscatedRuntime) {
+    // Non-main nodes get the gametest sources through EGT preprocessing (adding
+    // the raw srcDir here too made javac see the class twice — duplicate-class error).
+    sourceSets {
+        gametest {
+            if (isMainProject) {
+                java.srcDir file('../src/gametest/java')
+                resources.srcDir file('../src/gametest/resources')
+            }
+            compileClasspath += sourceSets.main.compileClasspath + sourceSets.main.output
+            runtimeClasspath += sourceSets.main.runtimeClasspath + sourceSets.main.output
+        }
+    }
+    tasks.named('check') { dependsOn 'compileGametestJava' }
+}

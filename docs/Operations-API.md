@@ -24,7 +24,7 @@ void getRegistry() {
 ## 2. Operations and OperationTypes
 * `Operation`s represent actions in a world that can be prevented from occuring entity based on:
   * Which game entity, if any, performed the action
-  * If the game entity is a player, their trust level (see [[Trust API]])
+  * If the game entity is a player, their trust level (see [Trust API](Trust-API.md))
   * The location the action affects or occurred
   * The game entity, if any, affected by the action
 * The type of action that occurred is represented by an `OperationType`.

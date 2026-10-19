@@ -19,26 +19,31 @@
 
 package net.william278.huskclaims.listener;
 
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.damage.DamageSource;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.Hand;
-import net.minecraft.util.hit.EntityHitResult;
-import net.minecraft.world.World;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.level.Level;
 import net.william278.huskclaims.HuskClaims;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public interface FabricPetListener {
 
-    default ActionResult onPlayerTamedInteract(PlayerEntity player, World world, Hand hand, Entity entity, @Nullable EntityHitResult hitResult) {
-        return this.onUserTamedEntityAction(player, entity) ? ActionResult.PASS : ActionResult.FAIL;
+    default InteractionResult onPlayerTamedInteract(Player player, Level world, InteractionHand hand, Entity entity, @Nullable EntityHitResult hitResult) {
+        // UseEntityCallback also fires on the physical client while playing on a
+        // remote server; only the integrated server should enforce pet rules.
+        if (world.isClientSide()) {
+            return InteractionResult.PASS;
+        }
+        return this.onUserTamedEntityAction(player, entity) ? InteractionResult.PASS : InteractionResult.FAIL;
     }
 
     default boolean onPlayerDamageTamed(LivingEntity entity, DamageSource damageSource, float damage) {
-        return this.onUserTamedEntityAction(damageSource.getAttacker(), entity);
+        return this.onUserTamedEntityAction(damageSource.getEntity(), entity);
     }
 
     boolean onUserTamedEntityAction(@Nullable Entity player, @NotNull Entity entity);

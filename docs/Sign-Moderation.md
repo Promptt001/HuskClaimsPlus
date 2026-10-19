@@ -19,7 +19,7 @@ HuskClaims offers a moderation feature for spying on the text contents of signs 
 </details>
 
 ## Sign spying
-To start sign spying, use `/signspy [on|off]` (see [[Commands]]). This requires the `huskclaims.command.signspy` permission to use. You will then begin receiving messages whenever users place a sign or edit sign text (except if the sign is blank) &mdash; this includes signs placed on other servers if you are using cross-server mode.
+To start sign spying, use `/signspy [on|off]` (see [Commands](Commands.md)). This requires the `huskclaims.command.signspy` permission to use. You will then begin receiving messages whenever users place a sign or edit sign text (except if the sign is blank) &mdash; this includes signs placed on other servers if you are using cross-server mode.
 
 If you click on the location of a sign in the chat message, you will be teleported to the sign's location if the [HuskHomes hook is in use](hooks#HuskHomes).
 

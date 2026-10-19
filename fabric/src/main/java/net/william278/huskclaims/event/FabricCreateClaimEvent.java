@@ -25,7 +25,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import net.fabricmc.fabric.api.event.Event;
 import net.fabricmc.fabric.api.event.EventFactory;
-import net.minecraft.util.ActionResult;
+import net.minecraft.world.InteractionResult;
 import net.william278.huskclaims.HuskClaims;
 import net.william278.huskclaims.claim.ClaimWorld;
 import net.william278.huskclaims.claim.Region;
@@ -42,16 +42,16 @@ public interface FabricCreateClaimEvent extends FabricEventCallback<CreateClaimE
     Event<FabricCreateClaimEvent> EVENT = EventFactory.createArrayBacked(FabricCreateClaimEvent.class,
             (listeners) -> (event) -> {
                 for (FabricCreateClaimEvent listener : listeners) {
-                    final ActionResult result = listener.invoke(event);
+                    final InteractionResult result = listener.invoke(event);
                     if (event.isCancelled()) {
-                        return ActionResult.CONSUME;
-                    } else if (result != ActionResult.PASS) {
+                        return InteractionResult.CONSUME;
+                    } else if (result != InteractionResult.PASS) {
                         event.setCancelled(true);
                         return result;
                     }
                 }
 
-                return ActionResult.PASS;
+                return InteractionResult.PASS;
             });
 
     @Getter

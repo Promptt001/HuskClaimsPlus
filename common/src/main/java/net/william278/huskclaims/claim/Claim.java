@@ -166,6 +166,21 @@ public class Claim implements Highlightable {
     @SerializedName("metadata")
     private Map<String, String> metadata;
 
+    /**
+     * Optional public teleport anchor ("claim warp") for this claim.
+     * <p>
+     * A {@code null} warp (the default) preserves stock behavior; setting a warp makes the
+     * claim discoverable via {@code /visit <name>} and {@code /claimwarp list}.
+     *
+     * @since HuskClaimsPlus 1.0.0
+     */
+    @Expose
+    @Getter
+    @Setter
+    @Nullable
+    @SerializedName("claim_warp")
+    private ClaimWarp warp;
+
     protected Claim(@Nullable UUID owner, @NotNull Region region, @NotNull ConcurrentMap<UUID, String> users,
                     @NotNull ConcurrentMap<String, String> groups, @NotNull ConcurrentMap<String, String> tags,
                     @NotNull ConcurrentMap<UUID, UUID> bannedUsers, @NotNull Set<Claim> children, boolean inheritParent,
@@ -284,6 +299,23 @@ public class Claim implements Highlightable {
                                       @NotNull HuskClaims plugin) {
         return user.getUuid().equals(owner) || getEffectiveTrustLevel(user, plugin)
                 .map(level -> level.getPrivileges().contains(privilege))
+                .orElse(false);
+    }
+
+    /**
+     * Returns whether the given user may use this claim's claim warp when it is
+     * private: the owner, or a player trusted with a Build/Manage-capable level
+     * (one that can place blocks or manage warps).
+     *
+     * @param user   the user to check
+     * @param plugin the plugin instance
+     * @return whether the user may use the claim's private warp
+     * @since HuskClaimsPlus 1.0.0
+     */
+    public boolean canUseWarp(@NotNull User user, @NotNull HuskClaims plugin) {
+        return user.getUuid().equals(owner) || getEffectiveTrustLevel(user, plugin)
+                .map(level -> level.getPrivileges().contains(TrustLevel.Privilege.MANAGE_WARP)
+                        || level.getFlags().contains(OperationType.BLOCK_PLACE))
                 .orElse(false);
     }
 

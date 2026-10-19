@@ -19,12 +19,12 @@
 
 package net.william278.huskclaims.api;
 
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.Pair;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.TeleportTarget;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import com.mojang.datafixers.util.Pair;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.portal.TeleportTransition;
 import net.william278.huskclaims.FabricHuskClaims;
 import net.william278.huskclaims.HuskClaims;
 import net.william278.huskclaims.position.Position;
@@ -73,31 +73,31 @@ public class FabricHuskClaimsAPI extends HuskClaimsAPI {
     }
 
     /**
-     * Get the {@link World} object for a given {@link net.minecraft.world.World}
+     * Get the {@link World} object for a given {@link net.minecraft.world.level.Level}
      *
      * @param world The Minecraft world object
      * @return The HuskClaims world
      * @since 1.5
      */
     @NotNull
-    public World getWorld(@NotNull net.minecraft.world.World world) {
+    public World getWorld(@NotNull net.minecraft.world.level.Level world) {
         return FabricHuskClaims.Adapter.adapt(world);
     }
 
     /**
-     * Get the {@link net.minecraft.world.World} object for a given {@link World}
+     * Get the {@link net.minecraft.world.level.Level} object for a given {@link World}
      *
      * @param world The HuskClaims world
      * @return The Minecraft world object
      * @since 1.5
      */
     @NotNull
-    public net.minecraft.world.World getWorld(@NotNull World world) {
-        return FabricHuskClaims.Adapter.adapt(world, ((FabricHuskClaims) getPlugin()).getMinecraftServer());
+    public net.minecraft.world.level.Level getWorld(@NotNull World world) {
+        return FabricHuskClaims.Adapter.adapt(world, ((FabricHuskClaims) getPlugin()).requireServer());
     }
 
     /**
-     * Get the {@link Position} object for a given {@link BlockPos block position} in a {@link net.minecraft.world.World}
+     * Get the {@link Position} object for a given {@link BlockPos block position} in a {@link net.minecraft.world.level.Level}
      *
      * @param world    the Minecraft world
      * @param position the Minecraft vector block position
@@ -105,12 +105,12 @@ public class FabricHuskClaimsAPI extends HuskClaimsAPI {
      * @since 1.5
      */
     @NotNull
-    public Position getPosition(@NotNull net.minecraft.world.World world, @NotNull BlockPos position) {
-        return FabricHuskClaims.Adapter.adapt(world, position.toCenterPos(), 0.0f, 0.0f);
+    public Position getPosition(@NotNull net.minecraft.world.level.Level world, @NotNull BlockPos position) {
+        return FabricHuskClaims.Adapter.adapt(world, Vec3.atCenterOf(position), 0.0f, 0.0f);
     }
 
     /**
-     * Get the {@link Position} object for a given {@link Vec3d vector position} in a {@link net.minecraft.world.World}
+     * Get the {@link Position} object for a given {@link Vec3 vector position} in a {@link net.minecraft.world.level.Level}
      *
      * @param world    the Minecraft world
      * @param position the Minecraft vector coordinate position
@@ -118,12 +118,12 @@ public class FabricHuskClaimsAPI extends HuskClaimsAPI {
      * @since 1.5
      */
     @NotNull
-    public Position getPosition(@NotNull net.minecraft.world.World world, @NotNull Vec3d position) {
+    public Position getPosition(@NotNull net.minecraft.world.level.Level world, @NotNull Vec3 position) {
         return FabricHuskClaims.Adapter.adapt(world, position, 0.0f, 0.0f);
     }
 
     /**
-     * Get the {@link Position} object for a given {@link Vec3d vector position} in a {@link net.minecraft.world.World}
+     * Get the {@link Position} object for a given {@link Vec3 vector position} in a {@link net.minecraft.world.level.Level}
      *
      * @param world    the Minecraft world
      * @param position the Minecraft vector coordinate position
@@ -133,7 +133,7 @@ public class FabricHuskClaimsAPI extends HuskClaimsAPI {
      * @since 1.5
      */
     @NotNull
-    public Position getPosition(@NotNull net.minecraft.world.World world, @NotNull Vec3d position,
+    public Position getPosition(@NotNull net.minecraft.world.level.Level world, @NotNull Vec3 position,
                                 float yaw, float pitch) {
         return FabricHuskClaims.Adapter.adapt(world, position, yaw, pitch);
     }
@@ -147,56 +147,56 @@ public class FabricHuskClaimsAPI extends HuskClaimsAPI {
      */
     @NotNull
     public Location getLocation(@NotNull Position position) {
-        return FabricHuskClaims.Adapter.adapt(position, ((FabricHuskClaims) getPlugin()).getMinecraftServer());
+        return FabricHuskClaims.Adapter.adapt(position, ((FabricHuskClaims) getPlugin()).requireServer());
     }
 
     /**
-     * Get a {@link TeleportTarget} for a {@link Position}
+     * Get a {@link TeleportTransition} for a {@link Position}
      *
      * @param position the HuskClaims position
-     * @return a {@link TeleportTarget teleportation target} object
+     * @return a {@link TeleportTransition teleportation target} object
      * @since 1.5
      */
     @NotNull
-    public TeleportTarget getTeleportTarget(@NotNull Position position) {
+    public TeleportTransition getTeleportTarget(@NotNull Position position) {
         return getLocation(position).teleportTarget();
     }
 
     /**
-     * Get the {@link net.minecraft.world.World} and {@link Vec3d} pair for a {@link Position}
+     * Get the {@link net.minecraft.world.level.Level} and {@link Vec3} pair for a {@link Position}
      *
      * @param position the HuskClaims position
-     * @return The {@link net.minecraft.world.World}-{@link Vec3d} {@link Pair}
+     * @return The {@link net.minecraft.world.level.Level}-{@link Vec3} {@link Pair}
      * @since 1.5
      */
     @NotNull
-    public Pair<ServerWorld, Vec3d> getWorldVec3dPair(@NotNull Position position) {
+    public Pair<ServerLevel, Vec3> getWorldVec3dPair(@NotNull Position position) {
         final Location loc = getLocation(position);
         return new Pair<>(loc.world(), loc.pos());
     }
 
     /**
-     * Get the {@link net.minecraft.world.World} and {@link Vec3d} pair for a {@link Position}
+     * Get the {@link net.minecraft.world.level.Level} and {@link Vec3} pair for a {@link Position}
      *
      * @param position the HuskClaims position
-     * @return The {@link net.minecraft.world.World}-{@link BlockPos} {@link Pair}
+     * @return The {@link net.minecraft.world.level.Level}-{@link BlockPos} {@link Pair}
      * @since 1.5
      */
     @NotNull
-    public Pair<ServerWorld, BlockPos> getWorldBlockPosPair(@NotNull Position position) {
+    public Pair<ServerLevel, BlockPos> getWorldBlockPosPair(@NotNull Position position) {
         final Location loc = getLocation(position);
         return new Pair<>(loc.world(), loc.blockPos());
     }
 
     /**
-     * Get the {@link OnlineUser} object for a given {@link ServerPlayerEntity}
+     * Get the {@link OnlineUser} object for a given {@link ServerPlayer}
      *
-     * @param player The Minecraft {@link ServerPlayerEntity server player entity}
+     * @param player The Minecraft {@link ServerPlayer server player entity}
      * @return The HuskClaims online user
      * @since 1.5
      */
     @NotNull
-    public OnlineUser getOnlineUser(@NotNull ServerPlayerEntity player) {
+    public OnlineUser getOnlineUser(@NotNull ServerPlayer player) {
         return ((FabricHuskClaims) plugin).getOnlineUser(player);
     }
 

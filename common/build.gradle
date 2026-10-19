@@ -9,7 +9,10 @@ dependencies {
     api 'org.apache.commons:commons-text:1.13.1'
     api 'com.google.code.gson:gson:2.13.1'
     api 'com.fatboyindustrial.gson-javatime-serialisers:gson-javatime-serialisers:1.1.2'
-    api 'net.william278:minedown:1.8.2'
+    // MineDown 1.8.2 is vendored (patched for Adventure 5) under
+    // src/main/java/de/themoep/minedown/adventure with an Adventure 4/5 compatibility
+    // patch (Paper 26.2 ships Adventure 5.2.0, where ClickEvent.Action is no longer
+    // an enum); the external dep is removed to avoid duplicate classes
     api 'net.william278:paginedown:1.1.2'
     api 'net.william278.cloplib:cloplib-common:2.0.13'
     api 'net.william278:DesertWell:2.0.4'
@@ -25,7 +28,7 @@ dependencies {
     compileOnly 'com.google.guava:guava:33.4.8-jre'
     compileOnly 'org.projectlombok:lombok:1.18.38'
 
-    compileOnlyApi 'net.william278.toilet:toilet-common:1.0.15'
+    compileOnlyApi 'net.william278.toilet:toilet-common:1.1.1' // Same Toilet API version as toilet-fabric 1.1.2+26.2
     compileOnlyApi 'net.william278.huskhomes:huskhomes-common:4.9.9'
 
     compileOnly 'net.luckperms:api:5.5'
@@ -39,6 +42,9 @@ dependencies {
     }
 
     testImplementation 'com.github.plan-player-analytics:Plan:5.6.2965'
+    testImplementation 'net.kyori:adventure-api:4.24.0' // GUI test kit: real Settings defaults reference adventure colors
+    testImplementation 'net.kyori:adventure-platform-api:4.4.0' // GUI test kit: Locales implements PaginatedListProvider
+    testImplementation 'net.william278.toilet:toilet-common:1.1.1' // GUI test kit: HuskClaims extends toilet interfaces
     testImplementation 'com.google.guava:guava:33.4.8-jre'
     testImplementation 'it.unimi.dsi:fastutil:8.5.16'
     testCompileOnly 'org.projectlombok:lombok:1.18.38'

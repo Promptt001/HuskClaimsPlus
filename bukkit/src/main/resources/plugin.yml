@@ -1,7 +1,7 @@
 name: 'HuskClaims'
 description: '${description}'
-author: 'William278'
-website: 'https://william278.net/project/huskclaims'
+authors: ['William278', 'Promptt001']
+website: 'https://github.com/Promptt001/HuskClaimsPlus'
 main: 'net.william278.huskclaims.BukkitHuskClaims'
 version: '${version}'
 api-version: 1.17

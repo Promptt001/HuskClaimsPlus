@@ -21,6 +21,7 @@ package net.william278.huskclaims.listener;
 
 import net.william278.huskclaims.HuskClaims;
 import net.william278.huskclaims.claim.ClaimingMode;
+import net.william278.huskclaims.claim.WarpCooldowns;
 import net.william278.huskclaims.command.IgnoreClaimsCommand;
 import net.william278.huskclaims.config.Settings;
 import net.william278.huskclaims.user.OnlineUser;
@@ -54,6 +55,10 @@ public interface UserListener {
     }
 
     default void onUserQuit(@NotNull OnlineUser user) {
+        // Drop any in-progress warp-visit safety check so it cannot outlive the
+        // session: previously only cleared by the Bukkit GUI manager, so it
+        // never ran on Fabric, nor on Paper with the GUI disabled)
+        WarpCooldowns.onQuit(user.getUuid());
         getPlugin().getUserCache().remove(user.getUuid());
         if (!getPlugin().getSettings().getCrossServer().isEnabled()) {
             getPlugin().unlockDrops(user);

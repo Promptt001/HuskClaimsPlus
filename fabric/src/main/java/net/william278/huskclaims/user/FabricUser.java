@@ -23,12 +23,14 @@ import com.google.common.collect.Lists;
 import com.pokeskies.fabricpluginmessaging.PluginMessagePacket;
 import me.lucko.fabric.api.permissions.v0.Permissions;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.CustomModelDataComponent;
-import net.minecraft.entity.Entity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.util.Identifier;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.component.CustomModelData;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.resources.Identifier;
+import net.minecraft.server.permissions.Permission;
+import net.minecraft.server.permissions.PermissionLevel;
 import net.william278.cloplib.listener.InspectorCallbackProvider;
 import net.william278.huskclaims.FabricHuskClaims;
 import net.william278.huskclaims.HuskClaims;
@@ -45,16 +47,16 @@ import java.util.function.Predicate;
 
 public class FabricUser extends OnlineUser {
 
-    private final ServerPlayerEntity fabricPlayer;
+    private final ServerPlayer fabricPlayer;
 
-    private FabricUser(@NotNull ServerPlayerEntity fabricPlayer, @NotNull HuskClaims plugin) {
-        super(fabricPlayer.getGameProfile().getName(), fabricPlayer.getUuid(), plugin);
+    private FabricUser(@NotNull ServerPlayer fabricPlayer, @NotNull HuskClaims plugin) {
+        super(fabricPlayer.getGameProfile().name(), fabricPlayer.getUUID(), plugin);
         this.fabricPlayer = fabricPlayer;
     }
 
     @NotNull
     @ApiStatus.Internal
-    public static FabricUser adapt(@NotNull ServerPlayerEntity player, @NotNull HuskClaims plugin) {
+    public static FabricUser adapt(@NotNull ServerPlayer player, @NotNull HuskClaims plugin) {
         return new FabricUser(player, plugin);
     }
 
@@ -77,28 +79,18 @@ public class FabricUser extends OnlineUser {
 
     @Override
     public boolean hasPermission(@NotNull String node, boolean isDefault) {
-        return Permissions.check(fabricPlayer, node, fabricPlayer.hasPermissionLevel(!isDefault ? 3 : 0));
+        // LAN/singleplayer policy: the operator fallback applies on an integrated server.
+        // LAN guests keep the world owner's operator fallback only when the Fabric
+        // settings allow it.
+        return FabricPermissions.check(
+                (FabricHuskClaims) plugin, fabricPlayer, node, !isDefault);
     }
 
     @Override
     public boolean isHolding(@NotNull InspectorCallbackProvider.InspectionTool tool) {
-        final Predicate<ItemStack> TYPE_MATCH = (i) -> i.getRegistryEntry().matchesId(Identifier.of(tool.material()));
-        final Predicate<ItemStack> MODEL_MATCH = (i) -> !tool.useCustomModelData() || getCustomModelData(i)
-                .map(m -> m == tool.customModelData()).orElse(false);
-        return TYPE_MATCH.and(MODEL_MATCH).test(fabricPlayer.getMainHandStack());
-    }
-
-    private Optional<Integer> getCustomModelData(@NotNull ItemStack i) {
-        final CustomModelDataComponent modelData = i.getComponents().get(DataComponentTypes.CUSTOM_MODEL_DATA);
-        //#if MC>=12104
-        if (modelData != null && !modelData.floats().isEmpty()) {
-            return Optional.of(modelData.floats().getFirst().intValue());
-        //#else
-        //$$ if (modelData != null) {
-        //$$     return Optional.of(modelData.value());
-        //#endif
-        }
-        return Optional.empty();
+        // one shared rule (see FabricUserClaimTool): the GUI handout and the protection
+        // check must never disagree about what counts as the claim tool
+        return FabricUserClaimTool.isClaimTool(fabricPlayer.getMainHandItem(), tool);
     }
 
     @Override
@@ -115,7 +107,7 @@ public class FabricUser extends OnlineUser {
 
     @Override
     public boolean isSneaking() {
-        return fabricPlayer.isSneaking();
+        return fabricPlayer.isShiftKeyDown();
     }
 
     @Override
@@ -132,21 +124,26 @@ public class FabricUser extends OnlineUser {
 
     private void teleportInstant(@NotNull Position position) {
         fabricPlayer.stopRiding();
-        fabricPlayer.getPassengerList().forEach(Entity::stopRiding);
-        fabricPlayer.teleportTo(FabricHuskClaims.Adapter.adapt(
-                position, ((FabricHuskClaims) plugin).getMinecraftServer()
+        fabricPlayer.getPassengers().forEach(Entity::stopRiding);
+        final FabricHuskClaims fabricPlugin = (FabricHuskClaims) plugin;
+        if (fabricPlugin.getMinecraftServer() == null) {
+            return; // no session: nothing to teleport within
+        }
+        fabricPlayer.teleport(FabricHuskClaims.Adapter.adapt(
+                position, fabricPlugin.requireServer()
         ).teleportTarget());
     }
 
     @NotNull
-    public ServerPlayerEntity getFabricPlayer() {
+    public ServerPlayer getFabricPlayer() {
         return fabricPlayer;
     }
 
     @Override
     public boolean canSee(@NotNull OnlineUser other) {
         if (other instanceof FabricUser fabricOther) {
-            return fabricPlayer.getServer().getPlayerManager().getPlayer(fabricOther.getFabricPlayer().getUuid()) != null;
+            return fabricPlayer.level().getServer() != null && fabricPlayer.level().getServer()
+                    .getPlayerList().getPlayer(fabricOther.getFabricPlayer().getUUID()) != null;
         }
         return true;
     }

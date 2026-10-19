@@ -43,3 +43,20 @@ bin/
 
 ### Media ###
 images/*.mov
+### Fabric client run artifacts (loom/game output, regenerable) ###
+saves/
+logs/
+data/
+downloads/
+.fabric/
+options.txt
+usercache.json
+
+### Loom run directories inside version nodes (rig output, never source) ###
+fabric/*/config/
+fabric/*/mods/
+fabric/*/resourcepacks/
+fabric/*/run/
+fabric/26.2/crash-reports/
+fabric/26.2/saves/
+fabric/26.2/run/

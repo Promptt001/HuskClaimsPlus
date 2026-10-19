@@ -20,11 +20,14 @@
 package net.william278.huskclaims.mixins;
 
 import com.llamalad7.mixinextras.sugar.Local;
-import net.minecraft.block.entity.SignBlockEntity;
-import net.minecraft.block.entity.SignText;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.server.filter.FilteredMessage;
-import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.world.level.block.entity.SignBlockEntity;
+import net.minecraft.world.level.block.entity.SignText;
+//#if MC>=260300
+//$$ import net.minecraft.world.level.block.entity.SignTextSlot;
+//#endif
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.server.network.FilteredText;
+import net.minecraft.server.level.ServerPlayer;
 import net.william278.huskclaims.util.PlayerActionEvents;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -37,15 +40,36 @@ import java.util.function.UnaryOperator;
 @Mixin(SignBlockEntity.class)
 public abstract class SignBlockEntityMixin {
 
+    // 26.2 (Mojang names):
+    // tryChangeText → updateSignText; changeText → updateText;
+    // getTextWithMessages → setMessages (all same descriptors).
+    //#if MC>=260300
+    //$$ // 26.3: updateSignText(Player, SignTextSlot, List<FilteredText>) calls
+    //$$ // updateText(UnaryOperator, SignTextSlot); filtering moved to static
+    //$$ // updateMessages(List<FilteredText>, SignText, boolean).
+    //$$ @Shadow
+    //$$ protected static SignText updateMessages(List<FilteredText> messages, SignText text, boolean front) {
+    //$$     throw new AssertionError(); // @Shadow static requires a body for javac; replaced at apply time
+    //$$ }
+    //$$
+    //$$ @ModifyArg(method = "updateSignText", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/block/entity/SignBlockEntity;updateText(Ljava/util/function/UnaryOperator;Lnet/minecraft/world/level/block/entity/SignTextSlot;)Z"))
+    //$$ UnaryOperator<SignText> tryChangeTextMixin(UnaryOperator<SignText> textChanger, @Local(argsOnly = true) Player player,
+    //$$     @Local(argsOnly = true) SignTextSlot slot, @Local(argsOnly = true) List<FilteredText> messages) {
+    //$$     List<FilteredText> filteredMessages = PlayerActionEvents.BEFORE_CHANGE_TEXT_ON_SIGN.invoker()
+    //$$         .changeTextOnSign((SignBlockEntity) (Object) this, (ServerPlayer) player, slot == SignTextSlot.FRONT, messages);
+    //$$     return (text) -> updateMessages(filteredMessages, text, slot == SignTextSlot.FRONT);
+    //$$ }
+    //#else
     @Shadow
-    protected abstract SignText getTextWithMessages(PlayerEntity player, List<FilteredMessage> messages, SignText text);
+    protected abstract SignText setMessages(Player player, List<FilteredText> messages, SignText text);
 
-    @ModifyArg(method = "tryChangeText", at = @At(value = "INVOKE", target = "Lnet/minecraft/block/entity/SignBlockEntity;changeText(Ljava/util/function/UnaryOperator;Z)Z"))
-    UnaryOperator<SignText> tryChangeTextMixin(UnaryOperator<SignText> textChanger, @Local(argsOnly = true) PlayerEntity player,
-        @Local(argsOnly = true) boolean front, @Local(argsOnly = true) List<FilteredMessage> messages) {
-        List<FilteredMessage> filteredMessages = PlayerActionEvents.BEFORE_CHANGE_TEXT_ON_SIGN.invoker()
-            .changeTextOnSign((SignBlockEntity) (Object) this, (ServerPlayerEntity) player, front, messages);
-        return (text) -> this.getTextWithMessages(player, filteredMessages, text);
+    @ModifyArg(method = "updateSignText", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/block/entity/SignBlockEntity;updateText(Ljava/util/function/UnaryOperator;Z)Z"))
+    UnaryOperator<SignText> tryChangeTextMixin(UnaryOperator<SignText> textChanger, @Local(argsOnly = true) Player player,
+        @Local(argsOnly = true) boolean front, @Local(argsOnly = true) List<FilteredText> messages) {
+        List<FilteredText> filteredMessages = PlayerActionEvents.BEFORE_CHANGE_TEXT_ON_SIGN.invoker()
+            .changeTextOnSign((SignBlockEntity) (Object) this, (ServerPlayer) player, front, messages);
+        return (text) -> this.setMessages(player, filteredMessages, text);
     }
+    //#endif
 
 }

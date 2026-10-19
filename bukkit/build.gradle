@@ -14,6 +14,8 @@ dependencies {
     implementation 'de.exlll:configlib-yaml:4.6.1'
 
     compileOnly 'org.spigotmc:spigot-api:1.17.1-R0.1-SNAPSHOT'
+    // Test-only: HarmfulBlocksMappingTests reads HARMFUL_BLOCKS Materials
+    testImplementation 'org.spigotmc:spigot-api:1.17.1-R0.1-SNAPSHOT'
     compileOnly 'org.jetbrains:annotations:26.0.2'
     compileOnly 'net.william278:DesertWell:2.0.4'
     compileOnly 'org.projectlombok:lombok:1.18.38'

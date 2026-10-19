@@ -34,6 +34,8 @@ import net.william278.desertwell.util.Version;
 import net.william278.huskclaims.api.BukkitHuskClaimsAPI;
 import net.william278.huskclaims.claim.ClaimWorld;
 import net.william278.huskclaims.command.BukkitCommand;
+import net.william278.huskclaims.command.GuiProvider;
+import net.william278.huskclaims.gui.BukkitClaimGuiManager;
 import net.william278.huskclaims.command.Command;
 import net.william278.huskclaims.config.Locales;
 import net.william278.huskclaims.config.Server;
@@ -81,7 +83,10 @@ import java.util.logging.Level;
 @Getter
 public class BukkitHuskClaims extends JavaPlugin implements HuskClaims, BukkitTask.Supplier, BukkitUserProvider,
         BukkitBlockProvider, BukkitSafeTeleportProvider, BukkitPetHandler, BukkitEventDispatcher, BukkitHookProvider,
-        PluginMessageListener {
+        PluginMessageListener, GuiProvider {
+
+    @Getter
+    private BukkitClaimGuiManager claimGuiManager;
 
     private MorePaperLib morePaperLib;
     private AudienceProvider audiences;
@@ -131,11 +136,26 @@ public class BukkitHuskClaims extends JavaPlugin implements HuskClaims, BukkitTa
         this.audiences = BukkitAudiences.create(this);
         this.morePaperLib = new MorePaperLib(this);
         this.toilet = BukkitToilet.create(getDumpOptions());
+        // Create the claim GUI manager before enable() (commands may delegate to it)
+        this.claimGuiManager = new BukkitClaimGuiManager(this);
         this.enable();
+        // ALWAYS register the GUI listener when the plugin is still running: it
+        // protects and purges even when the GUI is disabled, so stray GUI items
+        // can never persist. A failed enable() already disables the plugin and
+        // logged its reason — registering a listener then would throw a
+        // IllegalPluginAccessException that buries that reason in a stack trace.
+        if (isEnabled()) {
+            this.claimGuiManager.register();
+        }
     }
 
     @Override
     public void onDisable() {
+        // Close open claim menus FIRST D7): after shutdown there is no
+        // listener and an open menu would be free to loot.
+        if (this.claimGuiManager != null) {
+            this.claimGuiManager.closeAll();
+        }
         this.shutdown();
         if (this.audiences != null) {
             this.audiences.close();
@@ -149,6 +169,9 @@ public class BukkitHuskClaims extends JavaPlugin implements HuskClaims, BukkitTa
 
     @Override
     public void loadMetrics() {
+        if (BSTATS_PLUGIN_ID <= 0) {
+            return; // no bStats id is registered for this fork; never report under another plugin's id
+        }
         try {
             final Metrics metrics = new Metrics(this, BSTATS_PLUGIN_ID);
             metrics.addCustomChart(new SimplePie("is_cross_server",
@@ -180,7 +203,7 @@ public class BukkitHuskClaims extends JavaPlugin implements HuskClaims, BukkitTa
     @NotNull
     @Override
     public Version getPluginVersion() {
-        return Version.fromString(getDescription().getVersion());
+        return PluginVersions.plugin(getDescription().getVersion());
     }
 
     @Override
@@ -192,7 +215,7 @@ public class BukkitHuskClaims extends JavaPlugin implements HuskClaims, BukkitTa
     @Override
     @NotNull
     public Version getMinecraftVersion() {
-        return Version.fromString(getServer().getBukkitVersion());
+        return PluginVersions.minecraft(getServer().getBukkitVersion());
     }
 
     @NotNull
@@ -283,6 +306,18 @@ public class BukkitHuskClaims extends JavaPlugin implements HuskClaims, BukkitTa
     @Override
     public ClaimsListener createListener() {
         return new BukkitListener(this);
+    }
+
+    @Override
+    public boolean isGuiAvailable() {
+        return getSettings().getGui().isEnabled() && claimGuiManager != null;
+    }
+
+    @Override
+    public void openClaimGui(@NotNull OnlineUser user) {
+        if (claimGuiManager != null) {
+            claimGuiManager.openClaimGui(user);
+        }
     }
 
     @Override

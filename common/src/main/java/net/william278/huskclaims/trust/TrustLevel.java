@@ -58,6 +58,7 @@ public class TrustLevel implements Comparable<TrustLevel> {
         MANAGE_OPERATION_GROUPS,
         MANAGE_BANS,
         MAKE_PRIVATE,
+        MANAGE_WARP,
     }
 
 }

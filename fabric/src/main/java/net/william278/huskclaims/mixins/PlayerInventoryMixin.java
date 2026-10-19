@@ -23,10 +23,10 @@ import com.google.common.collect.Lists;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.sugar.Share;
 import com.llamalad7.mixinextras.sugar.ref.LocalRef;
-import net.minecraft.entity.ItemEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.server.level.ServerPlayer;
 import net.william278.huskclaims.util.PlayerActionEvents;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -37,27 +37,42 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.List;
 
-@Mixin(PlayerInventory.class)
+@Mixin(Inventory.class)
 public class PlayerInventoryMixin {
 
     @Shadow
     @Final
-    public PlayerEntity player;
+    public Player player;
 
     @Inject(method = "dropAll", at = @At("HEAD"))
     private void dropAllHeadMixin(CallbackInfo ci, @Share("items") LocalRef<List<ItemEntity>> itemsLocalRef) {
         itemsLocalRef.set(Lists.newArrayList());
     }
 
-    @ModifyExpressionValue(method = "dropAll", at = @At(value = "INVOKE", target = "Lnet/minecraft/entity/player/PlayerEntity;dropItem(Lnet/minecraft/item/ItemStack;ZZ)Lnet/minecraft/entity/ItemEntity;"))
+    // 26.2 (Mojang names): Inventory.dropAll invokes
+    // Player.drop(ItemStack, boolean, boolean).
+    // 26.3 moved the second boolean into net.minecraft.util.Prediction: Player.drop now
+    // takes (ItemStack, boolean, Prediction) and dropAll calls createItemStackToDrop(ItemStack, boolean, boolean).
+    //#if MC>=260300
+    //$$ // 26.3: Player.drop(ItemStack,Z,Prediction) is called as createItemStackToDrop(ItemStack,ZZ)
+    //$$ // inside Inventory.dropAll: invokevirtual Player.createItemStackToDrop:(ItemStack;ZZ)ItemEntity.
+    //$$ @ModifyExpressionValue(method = "dropAll", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/player/Player;createItemStackToDrop(Lnet/minecraft/world/item/ItemStack;ZZ)Lnet/minecraft/world/entity/item/ItemEntity;"))
+    //#else
+    @ModifyExpressionValue(method = "dropAll", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/player/Player;drop(Lnet/minecraft/world/item/ItemStack;ZZ)Lnet/minecraft/world/entity/item/ItemEntity;"))
+    //#endif
     private ItemEntity dropAllMixin(ItemEntity original, @Share("items") LocalRef<List<ItemEntity>> itemsLocalRef) {
         itemsLocalRef.get().add(original);
         return original;
     }
 
+    // Player.drop runs for the local player during client prediction, so
+    // only collect and report drops made by authoritative server players.
     @Inject(method = "dropAll", at = @At("TAIL"))
     private void dropAllTailMixin(CallbackInfo ci, @Share("items") LocalRef<List<ItemEntity>> itemsLocalRef) {
-        PlayerActionEvents.AFTER_DEATH_DROP_ITEMS.invoker().dropItems((ServerPlayerEntity) player, itemsLocalRef.get());
+        if (!(player instanceof ServerPlayer serverPlayer)) {
+            return;
+        }
+        PlayerActionEvents.AFTER_DEATH_DROP_ITEMS.invoker().dropItems(serverPlayer, itemsLocalRef.get());
     }
 
 }

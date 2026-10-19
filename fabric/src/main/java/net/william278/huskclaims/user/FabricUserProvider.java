@@ -19,7 +19,7 @@
 
 package net.william278.huskclaims.user;
 
-import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.level.ServerPlayer;
 import net.william278.huskclaims.FabricHuskClaims;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -31,18 +31,19 @@ public interface FabricUserProvider extends UserProvider {
     @Override
     @NotNull
     default OnlineUser getOnlineUser(@NotNull UUID uuid) {
-        return getOnlineUser(getPlugin().getMinecraftServer().getPlayerManager().getPlayer(uuid));
+        final ServerPlayer player = getPlugin().requireServer().getPlayerList().getPlayer(uuid);
+        return getOnlineUser(player);
     }
 
     @NotNull
-    default FabricUser getOnlineUser(@Nullable ServerPlayerEntity player) {
+    default FabricUser getOnlineUser(@Nullable ServerPlayer player) {
         if (player == null) {
             throw new IllegalArgumentException("Player is not online");
         }
-        FabricUser user = (FabricUser) getOnlineUserMap().get(player.getUuid());
-        if (user == null || user.getFabricPlayer().isRemoved() || user.getFabricPlayer().isDisconnected()) {
+        FabricUser user = (FabricUser) getOnlineUserMap().get(player.getUUID());
+        if (user == null || user.getFabricPlayer().isRemoved() || user.getFabricPlayer().hasDisconnected()) {
             user = FabricUser.adapt(player, getPlugin());
-            getOnlineUserMap().put(player.getUuid(), user);
+            getOnlineUserMap().put(player.getUUID(), user);
             return user;
         }
         return user;

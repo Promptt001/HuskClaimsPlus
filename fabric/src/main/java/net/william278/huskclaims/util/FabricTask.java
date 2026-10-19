@@ -19,22 +19,20 @@
 
 package net.william278.huskclaims.util;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import net.william278.huskclaims.FabricHuskClaims;
 import net.william278.huskclaims.HuskClaims;
 import org.jetbrains.annotations.NotNull;
 
 import java.time.Duration;
 import java.util.concurrent.*;
+import java.util.logging.Level;
 
 public interface FabricTask extends Task {
 
-    ScheduledExecutorService ASYNC_EXEC = Executors.newScheduledThreadPool(4,
-            new ThreadFactoryBuilder()
-                    .setDaemon(true)
-                    .setNameFormat("HuskClaims-ThreadPool")
-                    .build()
-    );
+    @NotNull
+    private static FabricHuskClaims fabric(@NotNull HuskClaims plugin) {
+        return (FabricHuskClaims) plugin;
+    }
 
     class Sync extends Task.Sync implements FabricTask {
 
@@ -43,17 +41,19 @@ public interface FabricTask extends Task {
         }
 
         @Override
-        public void cancel() {
-            super.cancel();
-        }
-
-        @Override
         public void run() {
-            if (!cancelled) {
-                ASYNC_EXEC.schedule(() -> ((FabricHuskClaims) getPlugin()).getMinecraftServer().executeSync(runnable),
-                        initialDelay.toMillis(),
-                        TimeUnit.MILLISECONDS);
+            if (cancelled) {
+                return;
             }
+            final FabricHuskClaims plugin = fabric(getPlugin());
+            final FabricScheduler scheduler = plugin.getScheduler();
+            final net.minecraft.server.MinecraftServer server = plugin.getMinecraftServer();
+            if (server == null || !scheduler.isRunning()) {
+                return; // no session: the work belongs to a world that is no longer open
+            }
+            scheduler.executor().schedule(() -> server.executeIfPossible(runnable),
+                    initialDelay.toMillis(),
+                    TimeUnit.MILLISECONDS);
         }
     }
 
@@ -74,9 +74,15 @@ public interface FabricTask extends Task {
 
         @Override
         public void run() {
-            if (!cancelled) {
-                this.task = CompletableFuture.runAsync(runnable, ASYNC_EXEC);
+            if (cancelled) {
+                return;
             }
+            final FabricScheduler scheduler = fabric(getPlugin()).getScheduler();
+            if (!scheduler.isRunning()) {
+                getPlugin().log(Level.WARNING, "Dropped a background task because no world is open");
+                return;
+            }
+            this.task = CompletableFuture.runAsync(runnable, scheduler.executor());
         }
     }
 
@@ -99,8 +105,12 @@ public interface FabricTask extends Task {
 
         @Override
         public void run() {
-            if (!cancelled) {
-                this.task = ASYNC_EXEC.scheduleAtFixedRate(
+            if (cancelled) {
+                return;
+            }
+            final FabricScheduler scheduler = fabric(getPlugin()).getScheduler();
+            if (scheduler.isRunning()) {
+                this.task = scheduler.executor().scheduleAtFixedRate(
                         runnable,
                         initialDelay.toMillis(),
                         repeatPeriod.toMillis(),
@@ -132,7 +142,8 @@ public interface FabricTask extends Task {
 
         @Override
         default void cancelTasks() {
-            ASYNC_EXEC.shutdownNow();
+            ((FabricHuskClaims) getPlugin()).getScheduler().drain(
+                    message -> getPlugin().log(Level.WARNING, message));
         }
 
     }

@@ -136,8 +136,12 @@ public class HuskClaimsAPIHook {
 
 ### 7. Next steps
 Now that you've got everything ready, you can start doing stuff with the HuskClaims API!
-- [[Claims API]] &mdash; Get, create, resize, & delete [[claims]], child claims, and admin claims, and manage [[claim blocks]]
-- [[Trust API]] &mdash; Trust users, groups and trust tags in claims, and provide custom [trust tags](trust#trust-tags)
-- [[Highlighter API]] &mdash; Provide a custom claim highlighter
-- [[Operations API]] &mdash; Register operation types and create Operations using them to have HuskClaims protect against custom actions 
-- [[API Events]] &mdash; Listen to events when players perform certain actions
+
+Members added by HuskClaimsPlus are marked `@since HuskClaimsPlus <version>` (for example
+`@since HuskClaimsPlus 1.0.0`). Every other `@since` value refers to an upstream HuskClaims
+version, which is what it shipped in there.
+- [Claims API](Claims-API.md) &mdash; Get, create, resize, & delete [claims](claims.md), child claims, and admin claims, and manage [claim blocks](claim-blocks.md)
+- [Trust API](Trust-API.md) &mdash; Trust users, groups and trust tags in claims, and provide custom [trust tags](trust#trust-tags)
+- [Highlighter API](Highlighter-API.md) &mdash; Provide a custom claim highlighter
+- [Operations API](Operations-API.md) &mdash; Register operation types and create Operations using them to have HuskClaims protect against custom actions 
+- [API Events](API-Events.md) &mdash; Listen to events when players perform certain actions

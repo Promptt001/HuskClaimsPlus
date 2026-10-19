@@ -1,0 +1,6 @@
+accessWidener v2 official
+accessible method net/minecraft/world/entity/Display setBrightnessOverride (Lnet/minecraft/util/Brightness;)V
+accessible method net/minecraft/world/entity/Display setViewRange (F)V
+accessible method net/minecraft/world/entity/Display setTransformation (Lcom/mojang/math/Transformation;)V
+accessible method net/minecraft/world/entity/Display setGlowColorOverride (I)V
+accessible method net/minecraft/world/entity/Display$BlockDisplay setBlockState (Lnet/minecraft/world/level/block/state/BlockState;)V

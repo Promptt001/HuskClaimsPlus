@@ -21,11 +21,11 @@ package net.william278.huskclaims.util;
 
 import net.fabricmc.fabric.api.event.Event;
 import net.fabricmc.fabric.api.event.EventFactory;
-import net.minecraft.block.entity.SignBlockEntity;
-import net.minecraft.entity.ItemEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.server.filter.FilteredMessage;
-import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.world.level.block.entity.SignBlockEntity;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.server.network.FilteredText;
+import net.minecraft.server.level.ServerPlayer;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Collection;
@@ -67,21 +67,21 @@ public final class PlayerActionEvents {
     @FunctionalInterface
     public interface AfterSwapHands {
 
-        void swapHands(ServerPlayerEntity player, ItemStack mainHandItem, ItemStack offHandItem);
+        void swapHands(ServerPlayer player, ItemStack mainHandItem, ItemStack offHandItem);
 
     }
 
     @FunctionalInterface
     public interface BeforeChangeTextOnSign {
 
-        List<FilteredMessage> changeTextOnSign(SignBlockEntity sign, ServerPlayerEntity player, boolean front, List<FilteredMessage> messages);
+        List<FilteredText> changeTextOnSign(SignBlockEntity sign, ServerPlayer player, boolean front, List<FilteredText> messages);
 
     }
 
     @FunctionalInterface
     public interface AfterDeathDropItems {
 
-        void dropItems(ServerPlayerEntity player, Collection<ItemEntity> items);
+        void dropItems(ServerPlayer player, Collection<ItemEntity> items);
 
     }
 

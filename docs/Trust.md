@@ -1,4 +1,4 @@
-HuskClaims lets you give users, groups of users, and tags a "Trust Level" in [[Claims]]. Trust Levels grant users access to Operation Type flags and Privileges, which grant users respective claim access rights and management privileges. Trust levels are fully configurable and can be customized or changed entirely by editing the `trust_levels.yml` config file.
+HuskClaims lets you give users, groups of users, and tags a "Trust Level" in [Claims](Claims.md). Trust Levels grant users access to Operation Type flags and Privileges, which grant users respective claim access rights and management privileges. Trust levels are fully configurable and can be customized or changed entirely by editing the `trust_levels.yml` config file.
 
 ## Trust Levels
 Trust Levels are defined in the `trust_levels.yml` config file and the default set of trust levels, based on the classic GriefPrevention plugin setup, are detailed below. Each trust level has an associated command (build trust, for instance). Users, groups, or tags can only be in one trust level at a time and trust levels are explicitly defined; they do not inherit granted operation types or privileges from lower levels.
@@ -56,6 +56,7 @@ Trust Levels are defined in the `trust_levels.yml` config file and the default s
                     <li>MANAGE_OPERATION_GROUPS</li>
                     <li>MANAGE_BANS</li>
                     <li>MAKE_PRIVATE</li>
+                    <li>MANAGE_WARP</li>
                 </ul>
                 </details>
             </td>
@@ -205,6 +206,7 @@ trust_levels:
       - MANAGE_OPERATION_GROUPS
       - MANAGE_BANS
       - MAKE_PRIVATE
+      - MANAGE_WARP
     weight: 400
   - id: build
     display_name: Build
@@ -318,14 +320,14 @@ User groups are a way of managing the trust of multiple groups of users at once,
 Note that deleting a user group won't remove it from the claim; it will remain trusted but greyed out. If the claim owner re-creates the group with new members, the group will be re-enabled.
 
 ### Trust Tags
-Trust tags are an abstract way of representing a set of users, and can be provided by other plugins through the [[API]] or through special built-in hooks. Below are the list of built-in tags.
+Trust tags are an abstract way of representing a set of users, and can be provided by other plugins through the [API](API.md) or through special built-in hooks. Below are the list of built-in tags.
 
 | Tag            | Description                                                                                                                           |
 |----------------|---------------------------------------------------------------------------------------------------------------------------------------|
 | `#public`      | Grant public access to a claim.                                                                                                       |
 | `#role/(name)` | Grant access to a [LuckPerms](https://luckperms.net/) permission group in a claim. Requires LuckPerms installed and the hook enabled. |
 
-Please note that the use of trust tags can be restricted by [[Permissions]]; by default, users cannot trust LuckPerms roles.
+Please note that the use of trust tags can be restricted by [Permissions](Permissions.md); by default, users cannot trust LuckPerms roles.
 
 ### Trustable calculation order
 The effective trust level of a user is calculated in the order described below if a user belongs to multiple trustable parties, they will receive the most explicit trust level defined for them:

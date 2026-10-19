@@ -1,32 +1,36 @@
-# [![HuskClaims banner](https://raw.githubusercontent.com/WiIIiam278/HuskClaims/master/images/banner.png)](https://github.com/WiIIiam278/HuskClaims)
-Welcome to the plugin documentation for HuskClaims v1.x+, the clean, cross-server compatible grief prevention plugin developed by William278. Please click through to the topic you'd like to read about.
+> These are the **HuskClaimsPlus** docs — a fork of HuskClaims adding the Claim Menu, claim warps and Fabric support (Minecraft 26.2). Base features are documented by upstream at [william278.net/docs/huskclaims](https://william278.net/docs/huskclaims).
+
+Welcome to the plugin documentation for HuskClaimsPlus 1.0+, claims, trust, claim warps and a Claim Menu GUI for Paper and Fabric — based on HuskClaims by William278. Please click through to the topic you'd like to read about.
 
 ## Get Started
-* 📚 [[Setup]]
-* ➡️ [[Importers]]
-* 📄 [[Config]]
-* 📝 [[Translations]]
-* 🔌 [[Hooks]]
+* 📚 [Setup](Setup.md)
+* 🧭 [Claim Menu](Claim-Menu.md) — the GUI for everything players do with claims
+* 🌀 [Claim Warps](Claim-Warps.md)
+* 🧵 [Fabric, singleplayer & LAN](Fabric.md)
+* ➡️ [Importers](Importers.md)
+* 📄 [Config](Config.md)
+* 📝 [Translations](Translations.md)
+* 🔌 [Hooks](Hooks.md)
 
 ## Documentation
-* 🖥️ [[Commands]]
-* ⛔ [[Permissions]]
-* 🥄 [[Claims]]
-* ❤️ [[Trust]]
-* 🎛️ [[Operation Groups]]
-* 🪧 [[Sign Moderation]]
-* 🪦 [[Drops Moderation]]
-* 😴 [[Inactivity Pruning]]
-* 🐕 [[Pets]]
+* 🖥️ [Commands](Commands.md)
+* ⛔ [Permissions](Permissions.md)
+* 🥄 [Claims](Claims.md)
+* ❤️ [Trust](Trust.md)
+* 🎛️ [Operation Groups](Operation-Groups.md)
+* 🪧 [Sign Moderation](Sign-Moderation.md)
+* 🪦 [Drops Moderation](Drops-Moderation.md)
+* 😴 [Inactivity Pruning](Inactivity-Pruning.md)
+* 🐕 [Pets](Pets.md)
 
 ## Developers
-* 📦 [[API]]
-* ⚙️ [[Claims API]]
-* 🧡 [[Trust API]]
-* 💡 [[Highlighter API]]
-* 🎬 [[Operations API]]
-* ❗ [[API Events]]
+* 📦 [API](API.md)
+* ⚙️ [Claims API](Claims-API.md)
+* 🧡 [Trust API](Trust-API.md)
+* 💡 [Highlighter API](Highlighter-API.md)
+* 🎬 [Operations API](Operations-API.md)
+* ❗ [API Events](API-Events.md)
 
 ## Links
-* 💻 [GitHub](https://github.com/WiIIiam278/HuskClaims)
-* 💬 [Discord Support](https://discord.gg/tVYhJfyDWG)
+* 💻 [GitHub](https://github.com/Promptt001/HuskClaimsPlus)
+* ❌ [Issues](https://github.com/Promptt001/HuskClaimsPlus/issues)

@@ -77,11 +77,14 @@ public class HuskClaimsCommand extends Command implements TabCompletable {
 
         this.updateChecker = plugin.getUpdateChecker();
         this.aboutMenu = AboutMenu.builder()
-                .title(Component.text("HuskClaims"))
-                .description(Component.text("A clean, cross-server compatible grief prevention plugin"))
+                .title(Component.text("HuskClaimsPlus"))
+                .description(Component.text("HuskClaimsPlus, based on HuskClaims by William278: claims, trust,"
+                        + " claim warps and a Claim Menu GUI for Paper and Fabric"))
                 .version(plugin.getPluginVersion())
                 .credits("Author",
-                        AboutMenu.Credit.of("William278").description("Click to visit website").url("https://william278.net"))
+                        AboutMenu.Credit.of("William278").description("Original author (HuskClaims)").url("https://william278.net"),
+                        AboutMenu.Credit.of("Promptt001").description("HuskClaimsPlus maintainer")
+                                .url("https://github.com/Promptt001"))
                 .credits("Contributors",
                         AboutMenu.Credit.of("LuckyValenok").description("Code"),
                         AboutMenu.Credit.of("AlexDev_").description("Code"),
@@ -96,9 +99,9 @@ public class HuskClaimsCommand extends Command implements TabCompletable {
                         AboutMenu.Credit.of("RealPif_5").description("Italian (it-it)")
                 )
                 .buttons(
-                        AboutMenu.Link.of("https://william278.net/docs/huskclaims").text("Documentation").icon("⛏"),
-                        AboutMenu.Link.of("https://github.com/WiIIiam278/HuskClaims/issues").text("Issues").icon("❌").color(TextColor.color(0xff9f0f)),
-                        AboutMenu.Link.of("https://discord.gg/tVYhJfyDWG").text("Discord").icon("⭐").color(TextColor.color(0x6773f5)))
+                        AboutMenu.Link.of("https://william278.net/docs/huskclaims").text("HuskClaims docs").icon("⛏"),
+                        AboutMenu.Link.of("https://github.com/Promptt001/HuskClaimsPlus").text("Source").icon("💻"),
+                        AboutMenu.Link.of("https://github.com/Promptt001/HuskClaimsPlus/issues").text("Issues").icon("❌").color(TextColor.color(0xff9f0f)))
                 .build();
     }
 
@@ -156,7 +159,13 @@ public class HuskClaimsCommand extends Command implements TabCompletable {
                     plugin.log(Level.SEVERE, "Failed to reload the plugin", e);
                 }
             });
-            case "update" -> updateChecker.check().thenAccept(checked -> {
+            case "update" -> {
+                if (!plugin.hasUpdateSource()) {
+                    plugin.getLocales().getLocale("update_checks_disabled")
+                            .ifPresent(executor::sendMessage);
+                    return;
+                }
+                updateChecker.check().thenAccept(checked -> {
                 if (checked.isUpToDate()) {
                     plugin.getLocales().getLocale("up_to_date", plugin.getPluginVersion().toString())
                             .ifPresent(executor::sendMessage);
@@ -164,7 +173,8 @@ public class HuskClaimsCommand extends Command implements TabCompletable {
                 }
                 plugin.getLocales().getLocale("update_available", checked.getLatestVersion().toString(),
                         plugin.getPluginVersion().toString()).ifPresent(executor::sendMessage);
-            });
+                });
+            }
             default -> plugin.getLocales().getLocale("error_invalid_syntax", getUsage())
                     .ifPresent(executor::sendMessage);
         }

@@ -34,8 +34,14 @@ import java.util.logging.Level;
  */
 public interface MetaProvider {
 
-    int SPIGOT_RESOURCE_ID = 114467;
-    int BSTATS_PLUGIN_ID = 20728;
+    /** GitHub "owner/repo" whose latest release tag is compared with this build. Blank turns update checks off. */
+    String UPDATE_REPOSITORY = "Promptt001/HuskClaimsPlus";
+
+    /** URL shown when an update is available. */
+    String RELEASES_URL = "https://github.com/" + UPDATE_REPOSITORY + "/releases";
+
+    /** bStats id registered for HuskClaimsPlus. Zero turns metrics off (none is registered). */
+    int BSTATS_PLUGIN_ID = 0;
 
     /**
      * Get a list of all {@link ClaimWorld}s
@@ -56,9 +62,20 @@ public interface MetaProvider {
     default UpdateChecker getUpdateChecker() {
         return UpdateChecker.builder()
                 .currentVersion(getPluginVersion())
-                .endpoint(UpdateChecker.Endpoint.SPIGOT)
-                .resource(Integer.toString(SPIGOT_RESOURCE_ID))
+                .endpoint(UpdateChecker.Endpoint.GITHUB)
+                .resource(UPDATE_REPOSITORY)
                 .build();
+    }
+
+    /**
+     * Whether this build compares its version against a release source of its own
+     * (blank repository constant means update checks are turned off for this build)
+     *
+     * @return {@code true} if update checks are enabled for this build
+     * @since HuskClaimsPlus 1.0.0
+     */
+    default boolean hasUpdateSource() {
+        return !UPDATE_REPOSITORY.isBlank();
     }
 
     /**
@@ -67,7 +84,7 @@ public interface MetaProvider {
      * @since 1.0
      */
     default void checkForUpdates() {
-        if (!getPlugin().getSettings().isCheckForUpdates()) {
+        if (!hasUpdateSource() || !getPlugin().getSettings().isCheckForUpdates()) {
             return;
         }
         getUpdateChecker().check().thenAccept(checked -> {
@@ -75,8 +92,8 @@ public interface MetaProvider {
                 return;
             }
             getPlugin().log(Level.WARNING, String.format(
-                    "A new version of HuskClaims is available: v%s (running v%s)",
-                    checked.getLatestVersion(), getPluginVersion())
+                    "A new version of HuskClaimsPlus is available: v%s (running v%s). Download: %s",
+                    checked.getLatestVersion(), getPluginVersion(), RELEASES_URL)
             );
         });
     }

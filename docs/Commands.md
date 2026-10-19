@@ -13,7 +13,7 @@ view a list of commands in-game.
     </tbody>
 </table>
 
-This is a table of HuskClaims commands, how to use them, their required permission nodes, and whether the permission is granted by default. Check the [[Permissions]] page for more details on plugin permissions.
+This is a table of HuskClaims commands, how to use them, their required permission nodes, and whether the permission is granted by default. Check the [Permissions](Permissions.md) page for more details on plugin permissions.
 
 <table>
     <thead>
@@ -385,6 +385,47 @@ This is a table of HuskClaims commands, how to use them, their required permissi
             <td colspan="2"><code>/trapped</code></td>
             <td>Teleports you outside a claim you can't build in.</td>
             <td><code>huskclaims.command.trapped</code></td>
+            <td align="center">✅</td>
+        </tr>
+        <!-- claim warp commands -->
+        <tr><th colspan="5">Claim warp commands</th></tr>
+        <tr><td colspan="5" align="center">Public teleport anchors set by claim owners — see [Claim Warps](Claim-Warps.md). Managing a warp requires being the claim owner or having the <code>MANAGE_WARP</code> trust privilege.</td></tr>
+        <tr>
+            <td rowspan="3"><code>/claimwarp</code></td>
+            <td><code>/claimwarp set &lt;name&gt;</code></td>
+            <td>Set your claim's public warp at your exact position (refused if the spot is unsafe)</td>
+            <td rowspan="3"><code>huskclaims.command.claimwarp</code></td>
+            <td align="center">✅</td>
+        </tr>
+        <tr>
+            <td><code>/claimwarp unset</code></td>
+            <td>Remove your claim's warp</td>
+            <td align="center">✅</td>
+        </tr>
+        <tr>
+            <td><code>/claimwarp rename &lt;name&gt;</code></td>
+            <td>Rename your claim's warp</td>
+            <td align="center">✅</td>
+        </tr>
+        <tr>
+            <td colspan="2"><code>/visit &lt;name&gt;</code></td>
+            <td>Teleport to a public claim warp by name (safety- and ban-checked)</td>
+            <td><code>huskclaims.command.visit</code></td>
+            <td align="center">✅</td>
+        </tr>
+        <tr>
+            <td colspan="2"><code>/visits</code></td>
+            <td>Browse all public claim warps in a clickable, paginated list</td>
+            <td><code>huskclaims.command.visits</code></td>
+            <td align="center">✅</td>
+        </tr>
+        <!-- GUI commands -->
+        <tr><th colspan="5">Claim Menu commands</th></tr>
+        <tr><td colspan="5" align="center">The one-command GUI for everything players do with claims — see [Claim Menu](Claim-Menu.md). Every button runs the real command behind it, with the same permission and trust checks.</td></tr>
+        <tr>
+            <td colspan="2"><code>/claimgui</code> <em>(alias /huskclaimgui)</em></td>
+            <td>Open the Claim Menu (My Claims, Claim Settings, Friends &amp; Trust, Public Permissions, Create/Resize, Claim Blocks, Public Claims, claim tool)</td>
+            <td><code>huskclaims.command.huskclaimgui</code></td>
             <td align="center">✅</td>
         </tr>
         <tr><th colspan="5">Other administrator commands</th></tr>

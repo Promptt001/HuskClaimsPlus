@@ -21,16 +21,16 @@ package net.william278.huskclaims.pet;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
-//#if MC==12105
-import net.minecraft.entity.LazyEntityReference;
+//#if MC>=12105
+import net.minecraft.world.entity.EntityReference;
 //#endif
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.passive.TameableEntity;
-import net.minecraft.entity.projectile.ProjectileUtil;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.util.hit.EntityHitResult;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.TamableAnimal;
+import net.minecraft.world.entity.projectile.ProjectileUtil;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import net.william278.huskclaims.FabricHuskClaims;
 import net.william278.huskclaims.user.FabricUser;
 import net.william278.huskclaims.user.OnlineUser;
@@ -47,8 +47,8 @@ public interface FabricPetHandler extends PetHandler {
     @Override
     default void userTransferPet(@NotNull OnlineUser user, @NotNull User newOwner, boolean forceTransfer) {
         getPlugin().runSync(() -> {
-            final ServerPlayerEntity player = ((FabricUser) user).getFabricPlayer();
-            final Optional<TameableEntity> lookingAt = getLookingAtTamed(player);
+            final ServerPlayer player = ((FabricUser) user).getFabricPlayer();
+            final Optional<TamableAnimal> lookingAt = getLookingAtTamed(player);
             final Optional<User> owner = lookingAt.flatMap(this::getPetOwner);
             if (lookingAt.isEmpty() || owner.isEmpty()) {
                 getPlugin().getLocales().getLocale("error_look_at_pet_transfer")
@@ -62,9 +62,9 @@ public interface FabricPetHandler extends PetHandler {
         });
     }
 
-    private void transferPet(@NotNull TameableEntity tamed, @NotNull OnlineUser owner, @NotNull User newOwner) {
+    private void transferPet(@NotNull TamableAnimal tamed, @NotNull OnlineUser owner, @NotNull User newOwner) {
         //#if MC>=12105
-        tamed.setOwner(new LazyEntityReference<>(newOwner.getUuid()));
+        tamed.setOwnerReference(EntityReference.of(newOwner.getUuid()));
         //#else
         //$$ tamed.setOwnerUuid(newOwner.getUuid());
         //#endif
@@ -79,12 +79,12 @@ public interface FabricPetHandler extends PetHandler {
             .ifPresent(owner::sendMessage);
     }
 
-    default Optional<User> getPetOwner(@NotNull TameableEntity entity) {
-        if (!entity.isTamed()) {
+    default Optional<User> getPetOwner(@NotNull TamableAnimal entity) {
+        if (!entity.isTame()) {
             return Optional.empty();
         }
         //#if MC>=12105
-        final UUID ownerUuid = entity.getOwnerReference() != null ? entity.getOwnerReference().getUuid() : null;
+        final UUID ownerUuid = entity.getOwnerReference() != null ? entity.getOwnerReference().getUUID() : null;
         //#else
         //$$ final UUID ownerUuid = entity.getOwnerUuid();
         //#endif
@@ -93,20 +93,20 @@ public interface FabricPetHandler extends PetHandler {
         }
 
         final LivingEntity owner = entity.getOwner();
-        return Optional.of(User.of(ownerUuid, !(owner instanceof ServerPlayerEntity playerOwner)
-            ? getPlugin().getLocales().getNotApplicable() : playerOwner.getGameProfile().getName()));
+        return Optional.of(User.of(ownerUuid, !(owner instanceof ServerPlayer playerOwner)
+            ? getPlugin().getLocales().getNotApplicable() : playerOwner.getGameProfile().name()));
     }
 
-    private Optional<TameableEntity> getLookingAtTamed(@NotNull ServerPlayerEntity player) {
-        Vec3d minPos = player.getCameraPosVec(0);
-        Vec3d connect = player.getRotationVec(0).multiply(TRANSFER_RANGE);
-        Vec3d maxPos = minPos.add(connect);
-        Box box = player.getBoundingBox().stretch(connect).expand(1);
-        EntityHitResult hitResult = ProjectileUtil.raycast(player, minPos, maxPos, box, entity -> entity instanceof TameableEntity, TRANSFER_RANGE * TRANSFER_RANGE);
+    private Optional<TamableAnimal> getLookingAtTamed(@NotNull ServerPlayer player) {
+        Vec3 minPos = player.getEyePosition(0);
+        Vec3 connect = player.getViewVector(0).multiply(TRANSFER_RANGE, TRANSFER_RANGE, TRANSFER_RANGE);
+        Vec3 maxPos = minPos.add(connect);
+        AABB box = player.getBoundingBox().expandTowards(connect).inflate(1);
+        EntityHitResult hitResult = ProjectileUtil.getEntityHitResult(player, minPos, maxPos, box, entity -> entity instanceof TamableAnimal, TRANSFER_RANGE * TRANSFER_RANGE);
         if (hitResult == null) {
             return Optional.empty();
         }
-        return Optional.of((TameableEntity) hitResult.getEntity());
+        return Optional.of((TamableAnimal) hitResult.getEntity());
     }
 
     @NotNull
